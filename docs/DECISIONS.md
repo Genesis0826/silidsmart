@@ -1,0 +1,26 @@
+# Architecture Decision Records (ADRs)
+
+## Overview
+This document records key technical decisions, architectural patterns, and rationale for SilidSmart.
+
+## Decisions
+
+### ADR-001: Modular Architecture and Separation of Concerns
+- **Status**: Accepted
+- **Decision**: Enforce strict separation between presentation (`frontend/`), application services (`backend/src/service.mjs`, `server.mjs`), and relational persistence (`node:sqlite` + SQL migrations).
+
+### ADR-002: Zero-Dependency Backend with Built-in `node:sqlite`
+- **Status**: Accepted
+- **Context**: Needed portable, relational SQLite persistence without native C++ build tool friction across Windows/Linux environments.
+- **Decision**: Use Node.js `v22+` built-in `node:sqlite` (`DatabaseSync`) and `node:http` with versioned SQL migrations and `node --test` integration tests against `:memory:` databases.
+- **Consequences**: Zero external backend npm dependencies, deterministic ACID transactions for occupancy sync (`toggleUnitOccupancy`), and instant single-command startup.
+
+### ADR-003: Strict Role-Scoped Workspaces & No Silent Mock Fallbacks
+- **Status**: Accepted
+- **Context**: Bootstrapping every role from a single `/api/bootstrap` payload leaked private tenant/rent rows into client state during `renter` browsing, and swallowing fetch errors silently hid backend outages behind stale sample data.
+- **Decision**: Expose `/api/public/workspace` (vacant published units + stripped owner metadata only) and `/api/owner/:ownerId/workspace` (single-landlord isolation), reserve `/api/bootstrap` for `admin`, clear private state arrays on `renter` views, start React state empty, and surface explicit loading, unavailable/retry, and mutation error banners.
+- **Consequences**: Verifiable network-level B2B/B2C privacy separation and honest, defensible error handling during outages or invalid requests.
+
+### ADR-004: Proptech Blue & Editorial Stone Anti-AI Design System
+- **Status**: Accepted
+- **Decision**: Standardize UI on `#002B66` brand navy, `#0057D9` action blue, `#F5A623` search framing, `Newsreader` + `Plus Jakarta Sans` + `JetBrains Mono` typography, hairline `gap: 1px` `.ledger-kpi-strip` summaries, `1px` borders, and native UTF-8 `₱` currency formatting without glassmorphism blur or decorative edge stripes.

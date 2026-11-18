@@ -1,0 +1,11 @@
+{
+  "name": "silidsmart-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --no-warnings src/server.mjs",
+    "dev": "node --no-warnings --watch src/server.mjs",
+    "test": "node --no-warnings --test tests/api.test.mjs"
+  }
+}
