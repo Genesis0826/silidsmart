@@ -30,3 +30,7 @@ SilidSmart is a **B2B2C rental management and room discovery platform** where sm
 2. **Freshness Stamp**: `"Availability last updated by owner: [date]"`
 3. **Trust Badge & Safety Disclaimer**: `"Owner ID reviewed"` followed by `"This does not certify property safety"`
 4. **Tier Pricing Basis**: `"The monthly fee depends on the total rooms or apartment units managed"`
+
+## Pitch scope confirmed November 18, 2026
+
+This is a demonstration prototype for Saturday, November 21. Retain clear example-data labeling beside maps and in the footer while removing the notice strip from the navigation. Present UST/Sampaloc and Quezon City as example search scopes containing sample rentals/apartments with approximate pins. Only show the signed-in user's workspace navigation; keep example role selection in the sign-in dialog for presenting the pitch. Production deployment and a complete live rental service are outside this request.

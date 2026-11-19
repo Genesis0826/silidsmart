@@ -8,7 +8,7 @@ import {
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (user: AuthUser) => void;
+  onLogin: (user: AuthUser, password?: string, register?: boolean) => Promise<boolean>;
   onOnboardOwner?: (payload: {
     ownerId: string;
     displayName: string;
@@ -16,6 +16,9 @@ interface AuthModalProps {
     idDocumentName: string;
     propertyName: string;
     initialUnitsCount: number;
+    email: string;
+    phone: string;
+    password: string;
   }) => Promise<boolean> | void;
   initialRole?: UserRole;
   demoUsers: AuthUser[];
@@ -73,46 +76,18 @@ export const AuthModal = ({
 
   const currentPlan = getBmcPlan(managedUnits);
 
-  const handleQuickLogin = (user: AuthUser) => {
-    onLogin(user);
-    onClose();
+  const handleQuickLogin = async (user: AuthUser) => {
+    setLoginError(null);
+    if (await onLogin(user, 'password123')) onClose();
+    else setLoginError('Unable to sign in to this example account.');
   };
 
-  const handleFormLogin = (e: React.FormEvent) => {
+  const handleFormLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
-
-    if (!identifier.trim()) {
-      setLoginError('Please enter your email or mobile phone number.');
-      return;
-    }
-
-    // Check if matches demo user email or phone
-    const foundUser = demoUsers.find(
-      (u) => 
-        u.email.toLowerCase() === identifier.trim().toLowerCase() ||
-        (u.phone && u.phone.replace(/[^0-9]/g, '').includes(identifier.trim().replace(/[^0-9]/g, '')))
-    );
-
-    if (foundUser) {
-      onLogin(foundUser);
-      onClose();
-    } else {
-      // Mock successful login with entered credentials
-      const roleFromInput = identifier.includes('admin') ? 'admin' : identifier.includes('owner') ? 'owner' : 'renter';
-      const newUser: AuthUser = {
-        id: `user-${Date.now()}`,
-        name: identifier.split('@')[0] || 'User',
-        email: identifier.includes('@') ? identifier : `${identifier}@sample.ph`,
-        phone: identifier.startsWith('09') ? identifier : undefined,
-        role: roleFromInput,
-        avatarInitials: identifier.substring(0, 2).toUpperCase(),
-        ownerId: roleFromInput === 'owner' ? 'owner-1' : undefined,
-        managedUnitsCount: roleFromInput === 'owner' ? 6 : undefined,
-      };
-      onLogin(newUser);
-      onClose();
-    }
+    const candidate: AuthUser = { id: '', name: '', email: identifier.trim(), role: 'renter', avatarInitials: '' };
+    if (await onLogin(candidate, password)) onClose();
+    else setLoginError('Email, mobile number, or password is incorrect.');
   };
 
   const handleSignupSubmit = async (e: React.FormEvent) => {
@@ -147,6 +122,7 @@ export const AuthModal = ({
         idDocumentName: `${governmentIdType.replace(/\s+/g, '_')}.pdf`,
         propertyName: propertyName.trim() || `${fullName.trim()} Residences`,
         initialUnitsCount: managedUnits,
+        email: createdUser.email, phone: createdUser.phone || '', password,
       });
       if (ok === false) {
         setLoginError('Unable to complete owner onboarding in SQLite backend. Verify server connection and retry.');
@@ -154,8 +130,8 @@ export const AuthModal = ({
       }
     }
 
-    onLogin(createdUser);
-    onClose();
+    if (await onLogin(createdUser, password, true)) onClose();
+    else setLoginError('Unable to create your account. Check the details and retry.');
   };
 
   return (
@@ -170,7 +146,7 @@ export const AuthModal = ({
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#FFFFFF' }}>SilidSmart.ph Account</h3>
               <p style={{ margin: 0, fontSize: '0.76rem', color: '#D9E6F7' }}>
-                B2B2C Rental Management & Room Directory Portal
+                Explore rentals or preview your workspace
               </p>
             </div>
           </div>
@@ -225,7 +201,7 @@ export const AuthModal = ({
               <div style={{ marginBottom: '20px', padding: '14px', backgroundColor: '#F8FAFC', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '0.78rem', fontWeight: 700, color: 'var(--brand-navy)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
                   <KeyRound size={14} color="var(--action-blue)" />
-                  <span>Quick Verification Accounts (1-Click Sign In)</span>
+                  <span>Example accounts — choose a role to preview</span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {demoUsers.map((u) => (
@@ -519,6 +495,10 @@ export const AuthModal = ({
                   </div>
                 )}
 
+                <label style={{ display: 'grid', gap: '6px', fontSize: '0.8125rem' }}>
+                  Account password (at least 8 characters)
+                  <input className="input" type="password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+                </label>
                 <button type="submit" className="btn btn-primary" style={{ marginTop: '8px', width: '100%' }}>
                   <CheckCircle size={16} />
                   {signupRole === 'owner' ? 'Register Property & Onboard' : 'Create Free Renter Account'}
@@ -531,7 +511,7 @@ export const AuthModal = ({
         {/* Footer */}
         <div className="modal-footer" style={{ justifyContent: 'center' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Concept prototype - sample properties only • SilidSmart Stage 1 Architecture
+            Pitch prototype • Example accounts and sample properties
           </span>
         </div>
       </div>

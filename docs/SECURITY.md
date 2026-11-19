@@ -8,12 +8,12 @@ Defines the B2B2C privacy isolation boundaries, role-scoped serialization contra
 1. **Strict B2B vs. B2C Data Isolation (Zero Tenant PII Leakage)**
    - **Public Endpoints (`GET /api/public/listings`, `GET /api/public/workspace`)**: Query only `Vacant` and `published = 1` units and return only public property/unit details alongside stripped owner trust metadata (`id`, `displayName`, `idReviewStatus`, `idSubmissionDate`).
    - Private tables (`tenants`, `rent_records`, `listing_reports`, `system_events`), private owner account attributes (`contactMethod`, `idDocumentName`), and `Occupied` units are **never** queried or serialized in public endpoints.
-   - **Client Memory Scrubbing (`frontend/src/App.tsx`)**: Switching back to `renter` perspective explicitly clears `tenants`, `rentRecords`, `listingReports`, and `systemEvents` in React state and re-fetches `/api/public/workspace`.
+   - **Client Memory Scrubbing (`frontend/src/App.tsx`)**: Signing out or changing accounts clears `tenants`, `rentRecords`, `listingReports`, and `systemEvents` in React state and re-fetches `/api/public/workspace`.
 
 2. **Landlord Portfolio Isolation (`GET /api/owner/:ownerId/workspace`)**
    - Scopes `properties`, `units`, `tenants`, `rentRecords`, `inquiries`, and `subscription` strictly to `WHERE owner_id = ?`.
-   - Returns only sanitized directory fields (`id`, `displayName`, `idReviewStatus`, `idSubmissionDate`) for other owners in the switcher list—omitting their `contactMethod` and `idDocumentName`.
-   - Unknown owner IDs fail explicitly with `404 OWNER_NOT_FOUND`.
+   - Returns only the signed-in owner's account in the owner list. The cross-landlord account switcher has been removed.
+   - Requests for an owner ID outside the signed-in portfolio fail with `403 PORTFOLIO_FORBIDDEN`.
 
 3. **Explicit Failure States (No Silent Fabricated Fallbacks)**
    - Neither backend failures nor missing records fall back to bundled client mock data; unavailable backends render an explicit error panel with retry controls, and mutation errors block modal closure while displaying server validation messages.
@@ -26,3 +26,12 @@ Defines the B2B2C privacy isolation boundaries, role-scoped serialization contra
 
 6. **Honest Identity Verification Disclaimers**
    - Government ID checks verify landlord identity submission only. Every public `"Owner ID reviewed"` badge is accompanied by `"This does not certify property safety"`.
+
+## Pitch prototype access controls — November 18, 2026
+
+- This remains a local pitch prototype. The sign-in dialog deliberately exposes three example accounts for demonstrating roles; it is not a production identity-provider integration.
+- Account passwords are salted and hashed with Node scrypt in SQLite. Server-issued random sessions use an HttpOnly, SameSite=Strict cookie, expire after eight hours, and are revoked on sign-out. Sessions are held in memory and end when the backend restarts.
+- Private requests require the matching server-side account role. Owner reads and writes check portfolio membership. Owner mutation responses return only that portfolio. Admin bootstrap, moderation, and data reset require the admin role.
+- Public workspaces return no inquiries to guests. Signed-in renters receive requests linked to their account ID, not matching names or contact numbers. The server assigns the requester ID on submission; supplied renter IDs and roles grant no access.
+- Owner registration creates its account and portfolio in one transaction. Public account registration can only create renters; administrator registration is not exposed.
+- Cross-origin writes are rejected; the Vite proxy preserves the browser host. Production deployment, abuse controls, recovery flows, and verified real-world rental inventory are outside this pitch scope.

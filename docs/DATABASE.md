@@ -29,3 +29,9 @@ Defines the SilidSmart B2B2C relational database schema (`silidsmart/backend/mig
 - `idx_units_property_id ON units(property_id)`
 - `idx_tenants_unit_id ON tenants(unit_id)`
 - `idx_rent_records_unit_id ON rent_records(unit_id)`
+
+## Migration 002 — pitch maps and account scoping
+
+`002_maps_and_accounts.sql` adds nullable checked `latitude`, `longitude`, and `map_scope` property fields, a persistent `accounts` table with salted password hashes and roles, and indexed `inquiries.renter_id` ownership. Account-to-owner and inquiry-to-account foreign keys use `ON DELETE SET NULL`. Legacy requests remain visible to their property owner and admin, without being assigned to an unrelated renter.
+
+The migration runs once and is recorded in `schema_migrations`. Startup inserts missing example QC properties/units and fills missing known seed coordinates without resetting existing inventory. Reset restores all sample inventory, including QC examples. No real property locations are asserted.

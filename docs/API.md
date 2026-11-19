@@ -31,7 +31,7 @@ Returns only published and vacant units (`published = 1 AND status = 'Vacant'`) 
   - `listings[].owner.safetyDisclaimer`: `"This does not certify property safety"`
 
 ### `GET /api/public/workspace`
-Returns the role-scoped public Renter workspace state from SQLite (`owners` public directory fields only without `contactMethod` or `idDocumentName`, `properties`, `Vacant` & `published` `units`, and `inquiries`).
+Returns the role-scoped public Renter workspace state from SQLite (`owners` public directory fields only without `contactMethod` or `idDocumentName`, `properties`, `Vacant` & `published` `units`, and account-scoped `inquiries`; guests receive an empty inquiry list).
 - **Privacy Guardrail**: Never queries or returns `tenants`, `rentRecords`, `listingReports`, `systemEvents`, or `Occupied` units.
 
 ### `POST /api/public/inquiries`
@@ -49,7 +49,7 @@ Flags an outdated or inaccurate public listing for administrator moderation.
 ## 2. Private B2B Landlord Endpoints (Owner Operations)
 
 ### `GET /api/owner/:ownerId/workspace`
-Returns the isolated workspace for `ownerId` (`owner`, sanitized `owners` directory list for switching, owner's `properties`, `units`, `tenants`, `rentRecords`, `inquiries`, and `subscription`). Throws `404 OWNER_NOT_FOUND` if the owner does not exist.
+Returns the isolated workspace for `ownerId` (`owner`, `owners` containing only the signed-in owner's record, owner's `properties`, `units`, `tenants`, `rentRecords`, `inquiries`, and `subscription`). Requires an owner session; requests for a different owner ID return `403 PORTFOLIO_FORBIDDEN`.
 
 ### `GET /api/owner/:ownerId/subscription`
 Calculates the owner's monthly BMC subscription tier from their total managed rooms/units (`1 room or 1 apartment = 1 count`).
@@ -78,8 +78,24 @@ Approves or declines a renter viewing request (`Approved`, `Declined`).
 
 ## 3. Platform Governance & System Endpoints (Admin)
 
-- `GET /api/bootstrap` — Returns full multi-role state for the interactive simulation console.
+- `GET /api/bootstrap` — Returns the full admin workspace; requires an administrator session.
 - `PATCH /api/admin/owners/:ownerId/id-review` — Updates owner ID verification status (`Pending review`, `ID reviewed`, `Needs correction`).
 - `PATCH /api/admin/reports/:reportId/resolve` — Marks a listing report as `Resolved`.
 - `PATCH /api/admin/units/:unitId/publish` — Toggles listing publication (`published: boolean`).
 - `POST /api/system/reset` — Resets all SQLite tables to the canonical BMC seed state.
+
+## Prototype account/session contract — November 18, 2026
+
+All private endpoints require the session cookie. Missing sessions return `401`; a wrong role or portfolio returns `403`. The UI's role buttons are not authorization. All JSON responses use `Cache-Control: no-store`.
+
+| Endpoint | Behavior |
+| --- | --- |
+| `GET /api/auth/session` | Returns `{ user }`, or `{ user: null }` for guests. |
+| `POST /api/auth/login` | Accepts `{ identifier, password }`; returns the server-selected user and sets an HttpOnly session cookie. |
+| `POST /api/auth/register` | Accepts `{ name, email, phone?, password }`; creates a renter only and signs in. |
+| `POST /api/auth/logout` | Revokes the session and expires the cookie. |
+| `POST /api/owners/onboard` | Existing onboarding fields plus `email`, `phone?`, and `password`; returns `{ onboardedOwnerId, user }` and signs in to that new portfolio. No admin bootstrap is returned. |
+
+Public inquiry/report submission requires a renter session. Inquiry submission returns that renter's public workspace; report submission returns `{ ok: true }`. Owner mutations return the owner's workspace rather than global bootstrap state.
+
+Public workspace properties additionally expose nullable `latitude`, `longitude`, and `mapScope` (`ust` or `qc`). These seed coordinates are approximate examples. The UST and QC controls filter the same unit inventory used by markers, results, and property-type counts. New listings without coordinates stay in their assigned scope's results and are explicitly reported as unlocated by the map.

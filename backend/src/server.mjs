@@ -1,14 +1,15 @@
 import http from 'node:http';
 import { URL } from 'node:url';
 import { createSilidSmartService, ValidationError, NotFoundError } from './service.mjs';
+import { AccessError } from './auth.mjs';
 
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
+    'Cache-Control': 'no-store',
   });
   res.end(body);
 }
@@ -41,7 +42,6 @@ export function createAppServer(service = createSilidSmartService()) {
   return http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PATCH, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type',
       });
@@ -54,6 +54,42 @@ export function createAppServer(service = createSilidSmartService()) {
     const method = req.method || 'GET';
 
     try {
+      // Cookie sessions determine identity; client role/owner fields grant no access.
+      if (method !== 'GET' && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) {
+        throw new AccessError(403, 'CROSS_ORIGIN_DENIED', 'Use the application to submit this request.');
+      }
+      const user = service.auth.getUser(req);
+      const requireRole = (role) => {
+        if (!user) throw new AccessError(401, 'SIGN_IN_REQUIRED', 'Please sign in to continue.');
+        if (user.role !== role) throw new AccessError(403, 'ROLE_FORBIDDEN', 'Your account cannot access this workspace.');
+      };
+      const ownerWorkspace = () => service.getOwnerWorkspace(user.ownerId);
+      const assertOwned = (collection, id) => {
+        if (!ownerWorkspace()[collection].some((item) => item.id === id)) {
+          throw new AccessError(403, 'PORTFOLIO_FORBIDDEN', 'This record is outside your portfolio.');
+        }
+      };
+      if (method === 'GET' && pathname === '/api/auth/session') {
+        sendJson(res, 200, { user }); return;
+      }
+      if (method === 'POST' && pathname === '/api/auth/login') {
+        const body = await readJsonBody(req);
+        const signedIn = service.auth.login(body.identifier, body.password);
+        service.auth.startSession(signedIn, req, res);
+        sendJson(res, 200, { user: signedIn }); return;
+      }
+      if (method === 'POST' && pathname === '/api/auth/register') {
+        const body = await readJsonBody(req);
+        const registered = service.auth.register({ name: body.name, email: body.email, phone: body.phone, password: body.password });
+        service.auth.startSession(registered, req, res);
+        sendJson(res, 201, { user: registered }); return;
+      }
+      if (method === 'POST' && pathname === '/api/auth/logout') {
+        service.auth.endSession(req, res); sendJson(res, 200, { ok: true }); return;
+      }
+      if (pathname === '/api/bootstrap' || pathname.startsWith('/api/admin/') || pathname.startsWith('/api/system/')) requireRole('admin');
+      if (pathname.startsWith('/api/owner/')) requireRole('owner');
+      if (method === 'POST' && (pathname === '/api/public/inquiries' || pathname === '/api/public/reports')) requireRole('renter');
       // Health Check
       if (method === 'GET' && pathname === '/api/health') {
         sendJson(res, 200, { status: 'ok', service: 'silidsmart-b2b2c-api', storage: 'sqlite' });
@@ -68,7 +104,7 @@ export function createAppServer(service = createSilidSmartService()) {
 
       // Public B2C Workspace State (Zero Tenant PII, Zero Ledger Data, Vacant Units Only)
       if (method === 'GET' && pathname === '/api/public/workspace') {
-        sendJson(res, 200, service.getPublicWorkspace());
+        sendJson(res, 200, service.getPublicWorkspace(user?.role === 'renter' ? user.id : null));
         return;
       }
 
@@ -82,6 +118,7 @@ export function createAppServer(service = createSilidSmartService()) {
       const ownerWorkspaceMatch = pathname.match(/^\/api\/owner\/([^/]+)\/workspace$/);
       if (method === 'GET' && ownerWorkspaceMatch) {
         const ownerId = decodeURIComponent(ownerWorkspaceMatch[1]);
+        if (ownerId !== user.ownerId) throw new AccessError(403, 'PORTFOLIO_FORBIDDEN', 'This is not your portfolio.');
         sendJson(res, 200, service.getOwnerWorkspace(ownerId));
         return;
       }
@@ -90,6 +127,7 @@ export function createAppServer(service = createSilidSmartService()) {
       const ownerTierMatch = pathname.match(/^\/api\/owner\/([^/]+)\/subscription$/);
       if (method === 'GET' && ownerTierMatch) {
         const ownerId = decodeURIComponent(ownerTierMatch[1]);
+        if (ownerId !== user.ownerId) throw new AccessError(403, 'PORTFOLIO_FORBIDDEN', 'This is not your portfolio.');
         sendJson(res, 200, service.getOwnerSubscriptionSummary(ownerId));
         return;
       }
@@ -98,23 +136,25 @@ export function createAppServer(service = createSilidSmartService()) {
       const occupancyMatch = pathname.match(/^\/api\/owner\/units\/([^/]+)\/occupancy$/);
       if (method === 'PATCH' && occupancyMatch) {
         const unitId = decodeURIComponent(occupancyMatch[1]);
+        assertOwned('units', unitId);
         const body = await readJsonBody(req);
-        const state = service.toggleUnitOccupancy({
+        service.toggleUnitOccupancy({
           unitId,
           newStatus: body.newStatus,
           tenantName: body.tenantName,
           tenantContact: body.tenantContact,
           moveInDate: body.moveInDate,
         });
-        sendJson(res, 200, state);
+        sendJson(res, 200, ownerWorkspace());
         return;
       }
 
       // 2. Add New Room / Unit
       if (method === 'POST' && pathname === '/api/owner/units') {
         const body = await readJsonBody(req);
-        const state = service.addUnit(body);
-        sendJson(res, 201, state);
+        assertOwned('properties', body.propertyId);
+        service.addUnit(body);
+        sendJson(res, 201, ownerWorkspace());
         return;
       }
 
@@ -122,20 +162,21 @@ export function createAppServer(service = createSilidSmartService()) {
       const rentMatch = pathname.match(/^\/api\/owner\/rent-records\/([^/]+)$/);
       if (method === 'PATCH' && rentMatch) {
         const recordId = decodeURIComponent(rentMatch[1]);
+        assertOwned('rentRecords', recordId);
         const body = await readJsonBody(req);
-        const state = service.updateRentStatus({
+        service.updateRentStatus({
           recordId,
           paymentStatus: body.paymentStatus,
         });
-        sendJson(res, 200, state);
+        sendJson(res, 200, ownerWorkspace());
         return;
       }
 
       // 4. Renter Submits Viewing Inquiry
       if (method === 'POST' && pathname === '/api/public/inquiries') {
         const body = await readJsonBody(req);
-        const state = service.submitInquiry(body);
-        sendJson(res, 201, state);
+        service.submitInquiry({ ...body, renterId: user.id });
+        sendJson(res, 201, service.getPublicWorkspace(user.id));
         return;
       }
 
@@ -143,20 +184,21 @@ export function createAppServer(service = createSilidSmartService()) {
       const inquiryMatch = pathname.match(/^\/api\/owner\/inquiries\/([^/]+)$/);
       if (method === 'PATCH' && inquiryMatch) {
         const inquiryId = decodeURIComponent(inquiryMatch[1]);
+        assertOwned('inquiries', inquiryId);
         const body = await readJsonBody(req);
-        const state = service.respondInquiry({
+        service.respondInquiry({
           inquiryId,
           action: body.action,
         });
-        sendJson(res, 200, state);
+        sendJson(res, 200, ownerWorkspace());
         return;
       }
 
       // 6. Renter Submits Listing Discrepancy Report
       if (method === 'POST' && pathname === '/api/public/reports') {
         const body = await readJsonBody(req);
-        const state = service.submitReport(body);
-        sendJson(res, 201, state);
+        service.submitReport(body);
+        sendJson(res, 201, { ok: true });
         return;
       }
 
@@ -205,8 +247,12 @@ export function createAppServer(service = createSilidSmartService()) {
       // 11. Onboard New Landlord + Property + Starter Units
       if (method === 'POST' && pathname === '/api/owners/onboard') {
         const body = await readJsonBody(req);
-        const result = service.onboardOwner(body);
-        sendJson(res, 201, result);
+        // Validate account fields before creating a portfolio; never accept a supplied role.
+        if (!body.email || !body.password) throw new ValidationError('ACCOUNT_REQUIRED', 'Email and password are required.');
+        const result = service.onboardOwner({ ...body, account: { name: body.displayName, email: body.email, phone: body.phone, password: body.password } });
+        const signedIn = result.user;
+        service.auth.startSession(signedIn, req, res);
+        sendJson(res, 201, { onboardedOwnerId: result.onboardedOwnerId, user: signedIn });
         return;
       }
 
@@ -218,7 +264,7 @@ export function createAppServer(service = createSilidSmartService()) {
         },
       });
     } catch (err) {
-      if (err instanceof ValidationError || err instanceof NotFoundError) {
+      if (err instanceof ValidationError || err instanceof NotFoundError || err instanceof AccessError) {
         sendJson(res, err.status, {
           error: {
             code: err.code,

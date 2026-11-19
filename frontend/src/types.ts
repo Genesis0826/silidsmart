@@ -43,6 +43,9 @@ export interface Property {
   amenities: string[];
   contactMethod: string;
   imageUrl?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  mapScope?: 'ust' | 'qc' | null;
 }
 
 export interface Unit {

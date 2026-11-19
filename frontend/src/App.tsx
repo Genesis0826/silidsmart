@@ -58,6 +58,7 @@ function getWorkspaceUrl(role: UserRole, ownerId: string): string {
 export function App() {
   // Authentication & session state (starts as guest renter browsing free public directory)
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalInitialRole, setAuthModalInitialRole] = useState<UserRole>('renter');
 
@@ -157,8 +158,23 @@ export function App() {
     }
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/session').then((res) => res.ok ? res.json() : null).then((payload) => {
+      if (cancelled) return;
+      if (payload?.user) {
+        setCurrentUser(payload.user);
+        setCurrentRole(payload.user.role);
+        setSelectedOwnerId(payload.user.ownerId || 'owner-1');
+      }
+      setSessionReady(true);
+    }).catch(() => { if (!cancelled) setSessionReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+
   // Re-fetch role-scoped workspace whenever active perspective or selected landlord changes
   useEffect(() => {
+    if (!sessionReady) return;
     let cancelled = false;
     const targetKey = currentRole === 'owner' ? `owner:${selectedOwnerId}` : currentRole;
     const seq = ++requestSeqRef.current;
@@ -226,11 +242,12 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [currentRole, selectedOwnerId]);
+  }, [currentRole, selectedOwnerId, sessionReady]);
 
   const handleRoleChange = (nextRole: UserRole) => {
     setActionError(null);
     setErrorInfo(null);
+    if (nextRole !== 'renter' && nextRole !== currentUser?.role) return;
     setCurrentRole(nextRole);
   };
 
@@ -278,14 +295,33 @@ export function App() {
     setIsAuthModalOpen(true);
   };
 
-  const handleLogin = (user: AuthUser) => {
-    setActionError(null);
-    setErrorInfo(null);
-    setCurrentUser(user);
-    if (user.ownerId) {
-      setSelectedOwnerId(user.ownerId);
-    }
-    setCurrentRole(user.role);
+  const clearWorkspace = () => {
+    ++requestSeqRef.current;
+    setLoadedKey(null);
+    setOwners([]); setProperties([]); setUnits([]); setTenants([]);
+    setRentRecords([]); setInquiries([]); setListingReports([]); setSystemEvents([]);
+  };
+
+  const handleLogin = async (user: AuthUser, password = 'password123', register = false): Promise<boolean> => {
+    try {
+      const onboarded = register && user.role === 'owner';
+      const res = await fetch(onboarded ? '/api/auth/session' : register ? '/api/auth/register' : '/api/auth/login', {
+        method: onboarded ? 'GET' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        ...(onboarded ? {} : { body: JSON.stringify(register
+          ? { name: user.name, email: user.email, phone: user.phone, password }
+          : { identifier: user.email, password }) }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload.user) { setActionError(payload.error?.message || 'Unable to sign in.'); return false; }
+      clearWorkspace();
+      setActionError(null); setErrorInfo(null);
+      setCurrentUser(payload.user);
+      setSelectedOwnerId(payload.user.ownerId || 'owner-1');
+      setCurrentRole(payload.user.role);
+      await loadWorkspace(payload.user.role, payload.user.ownerId || 'owner-1');
+      return true;
+    } catch { setActionError('Unable to sign in. Please check your connection.'); return false; }
   };
 
   const handleOnboardOwner = async (payload: {
@@ -295,6 +331,9 @@ export function App() {
     idDocumentName: string;
     propertyName: string;
     initialUnitsCount: number;
+    email: string;
+    phone: string;
+    password: string;
   }): Promise<boolean> => {
     const result = await executeMutation<{ onboardedOwnerId?: string }>(
       '/api/owners/onboard',
@@ -309,16 +348,18 @@ export function App() {
     if (result.ok) {
       const targetId = result.data?.onboardedOwnerId || payload.ownerId;
       setSelectedOwnerId(targetId);
-      setCurrentRole('owner');
     }
     return result.ok;
   };
 
-  const handleLogout = () => {
-    setActionError(null);
-    setErrorInfo(null);
-    setCurrentUser(null);
-    setCurrentRole('renter');
+  const handleLogout = async () => {
+    try {
+      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      if (!res.ok) { setActionError('Unable to sign out. Please retry.'); return; }
+      clearWorkspace();
+      setActionError(null); setErrorInfo(null); setCurrentUser(null); setCurrentRole('renter');
+      await loadWorkspace('renter', 'owner-1');
+    } catch { setActionError('Unable to sign out. Please check your connection and retry.'); }
   };
 
   // 1. Owner toggles room occupancy (with optional incoming tenant details)
@@ -447,66 +488,6 @@ export function App() {
         onLogout={handleLogout}
       />
 
-      {/* Role-specific Owner Context Switcher */}
-      {currentRole === 'owner' && activeOwner && !loadError && (
-        <div
-          style={{
-            backgroundColor: 'var(--action-blue-light)',
-            borderBottom: '1px solid var(--action-blue-border)',
-            padding: '8px 0',
-            fontSize: '0.8125rem',
-          }}
-        >
-          <div
-            className="container"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '8px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 10px', maxWidth: '100%' }}>
-              <span style={{ fontWeight: 700, color: 'var(--brand-navy)' }}>Simulating Landlord Account:</span>
-              <select
-                value={selectedOwnerId}
-                onChange={(e) => {
-                  setActionError(null);
-                  setErrorInfo(null);
-                  setSelectedOwnerId(e.target.value);
-                }}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: 'var(--radius-xs)',
-                  border: '1px solid var(--action-blue-border)',
-                  fontWeight: 700,
-                  color: 'var(--brand-navy)',
-                  backgroundColor: '#FFFFFF',
-                  fontSize: '0.8125rem',
-                  maxWidth: '100%',
-                }}
-              >
-                {owners.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.displayName} ({o.idReviewStatus})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
-              Currently managing:{' '}
-              <strong style={{ color: 'var(--brand-navy)' }}>
-                {properties
-                  .filter((p) => p.ownerId === activeOwner.id)
-                  .map((p) => p.name)
-                  .join(', ') || 'No properties'}
-              </strong>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Explicit Action Error Banner (HTTP 4xx/5xx or network error) */}
       {actionError && (
         <div className="container" style={{ paddingTop: '14px' }}>
@@ -617,7 +598,7 @@ export function App() {
           />
         )}
 
-        {!loadError && hasLoadedRole && currentRole === 'owner' && activeOwner && (
+        {!loadError && hasLoadedRole && currentRole === 'owner' && currentUser?.role === 'owner' && activeOwner?.id === currentUser.ownerId && (
           <OwnerView
             owner={activeOwner}
             properties={properties}
@@ -632,7 +613,7 @@ export function App() {
           />
         )}
 
-        {!loadError && hasLoadedRole && currentRole === 'admin' && (
+        {!loadError && hasLoadedRole && currentRole === 'admin' && currentUser?.role === 'admin' && (
           <AdminView
             owners={owners}
             properties={properties}
@@ -692,10 +673,10 @@ export function App() {
               }`}
             >
               {isLoading || isMutating
-                ? 'SQLite API: Syncing...'
+                ? 'Updating…'
                 : apiConnected
-                ? 'SQLite Persistence: Active'
-                : 'SQLite API: Disconnected'}
+                ? 'Connected'
+                : 'Offline'}
             </span>
           </div>
         </div>

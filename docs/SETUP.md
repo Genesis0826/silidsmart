@@ -23,7 +23,7 @@ Exact steps and prerequisites for running the SilidSmart B2B2C frontend and SQLi
    # Or for auto-reload during development:
    npm run dev
    ```
-   On first boot, `backend/src/service.mjs` initializes `backend/data/silidsmart.sqlite` using `backend/migrations/001_initial_b2b2c_schema.sql` and seeds initial BMC sample records if the `owners` table is empty.
+   On first boot, `backend/src/service.mjs` initializes `backend/data/silidsmart.sqlite` using the versioned migrations in `backend/migrations/` and seeds initial BMC sample records if the `owners` table is empty.
 
 3. **Start the Frontend Vite Server (`http://localhost:5173`)**:
    ```bash
@@ -33,7 +33,7 @@ Exact steps and prerequisites for running the SilidSmart B2B2C frontend and SQLi
    Vite's development server ([frontend/vite.config.ts](../frontend/vite.config.ts)) proxies `/api/*` requests directly to `http://localhost:4000`.
 
 ## Resetting Demo Data & Troubleshooting
-- **Reset to canonical seed state**: Click **Reset Database** in the top navigation bar or run `POST http://localhost:5173/api/system/reset`.
+- **Reset to canonical seed state**: Sign in to the example administrator account and choose **Reset example data** from the account menu. The reset API requires that administrator session.
 - **Backend Unavailable Panel**: If the frontend displays *"Backend Service Unavailable"*, verify port `4000` is running (`cd backend && npm start`) and click **Retry Connection**.
 - **Environment Overrides**:
   - `PORT`: Backend listen port (defaults to `4000`).

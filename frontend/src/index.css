@@ -809,3 +809,47 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Role-scoped navigation and geographic rental discovery. */
+.site-header { position: sticky; top: 0; z-index: 900; background: var(--brand-navy); color: white; border-bottom: 1px solid rgba(255,255,255,.15); }
+.site-header-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; padding-block: 12px; }
+.site-wordmark { font-size: 1.7rem; color: white; text-decoration: none; }
+.site-wordmark span { color: var(--booking-yellow); }
+.site-header .role-switcher-tab { color: #d9e6f7; }
+.site-header .role-switcher-tab[aria-current="page"] { background: white; color: var(--brand-navy); font-weight: 700; }
+.header-property-button, .header-signin-button, .account-trigger { padding: 8px 12px; border: 1px solid #ffffff55; border-radius: 4px; color: white; font-size: .8rem; font-weight: 600; }
+.header-signin-button { background: white; color: var(--brand-navy); }
+.account-control { position: relative; }
+.account-trigger { display: flex; align-items: center; gap: 8px; }
+.account-menu { position: absolute; top: calc(100% + 8px); right: 0; min-width: 220px; background: white; color: var(--text-primary); border: 1px solid var(--border-medium); border-radius: 6px; box-shadow: var(--shadow-dropdown); overflow: hidden; }
+.account-menu > div { padding: 12px; border-bottom: 1px solid var(--border-light); }
+.account-menu small { display: block; color: var(--text-muted); margin-top: 4px; }
+.account-menu button { display: block; width: 100%; padding: 12px; text-align: left; }
+.account-menu button:hover { background: var(--action-blue-light); }
+.rental-scope-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin: 6px 0 16px; }
+.scope-label { font-size: 1.1rem; font-weight: 700; color: var(--brand-navy); }
+.rental-scope-toolbar p { margin-top: 3px; color: var(--text-muted); font-size: .8rem; }
+.scope-options { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--border-medium); background: white; border-radius: 6px; }
+.scope-options button { padding: 9px 20px; border-radius: 4px; font-weight: 700; font-size: .85rem; }
+.scope-options button[aria-pressed="true"] { background: var(--brand-navy); color: white; }
+.rental-map-panel { margin-bottom: 26px; border: 1px solid var(--border-medium); border-radius: 6px; background: white; overflow: hidden; }
+.rental-map-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 20px; }
+.rental-map-heading h2 { font-size: 1rem; color: var(--brand-navy); margin: 0 0 4px; }
+.rental-map-heading p, .rental-map-heading > span { font-size: .77rem; color: var(--text-secondary); }
+.rental-map { height: 340px; z-index: 0; background: #e8eeec; }
+.rental-price-marker { display: flex; align-items: center; justify-content: center; background: white; color: #002B66; border: 1px solid #002B66; border-radius: 5px; font: 700 13px 'Plus Jakarta Sans', sans-serif; box-shadow: 0 2px 5px #002b6626; font-variant-numeric: tabular-nums; }
+.rental-price-marker:hover, .rental-price-marker:focus-visible { background: #002B66; color: white; }
+.map-listing-link { display: block; width: 100%; text-align: left; margin-top: 7px; padding: 8px; background: #edf4ff; color: #0057d9; border: 1px solid #c6daf6; border-radius: 4px; font-weight: 600; }
+.rental-map-caption, .map-message { padding: 10px 20px; font-size: .74rem; line-height: 1.6; color: var(--text-secondary); border-top: 1px solid var(--border-light); }
+.map-message { background: #fff8e6; }
+@media (max-width: 640px) {
+  .site-header-inner { gap: 10px; }
+  .site-wordmark { font-size: 1.4rem; }
+  .site-header .role-switcher-nav { order: 3; width: 100%; }
+  .site-header .role-switcher-actions { margin-left: auto; }
+  .header-property-button, .header-signin-button, .account-trigger { padding: 7px 9px; font-size: .72rem; }
+  .rental-map { height: 290px; }
+  .scope-options { width: 100%; }
+  .scope-options button { flex: 1; padding-inline: 10px; }
+  .rental-map-heading { padding: 12px; }
+}

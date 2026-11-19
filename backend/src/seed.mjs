@@ -28,6 +28,7 @@ export const seedOwners = [
 export const seedProperties = [
   {
     id: 'prop-1',
+    latitude: 14.6083, longitude: 120.9875, mapScope: 'ust',
     ownerId: 'owner-1',
     name: 'P. Noval Scholars Boarding House',
     type: 'Boarding house',
@@ -51,6 +52,7 @@ export const seedProperties = [
   },
   {
     id: 'prop-2',
+    latitude: 14.6074, longitude: 120.9903, mapScope: 'ust',
     ownerId: 'owner-2',
     name: 'The One Torre de Santo Tomas (Sample Units)',
     type: 'Condo',
@@ -74,6 +76,7 @@ export const seedProperties = [
   },
   {
     id: 'prop-3',
+    latitude: 14.6113, longitude: 120.9918, mapScope: 'ust',
     ownerId: 'owner-3',
     name: 'Lacson Reviewee & Medical Dormitory',
     type: 'Dorm',
@@ -97,6 +100,7 @@ export const seedProperties = [
   },
   {
     id: 'prop-4',
+    latitude: 14.6131, longitude: 120.9884, mapScope: 'ust',
     ownerId: 'owner-1',
     name: 'iTower Dos Castillas Residences (Sample Units)',
     type: 'Condo',
@@ -119,6 +123,7 @@ export const seedProperties = [
   },
   {
     id: 'prop-5',
+    latitude: 14.6122, longitude: 120.9868, mapScope: 'ust',
     ownerId: 'owner-2',
     name: 'Dapitan Courtyard Student Apartments',
     type: 'Apartment',
@@ -141,7 +146,30 @@ export const seedProperties = [
   },
 ];
 
+
+// Fictional rentals with approximate example locations, never verified inventory.
+seedProperties.push(...[
+  { id: 'prop-qc-1', name: 'Diliman Study Studios (Example)', area: 'Diliman, Quezon City', address: 'Example location near Maginhawa Street, Diliman, Quezon City', latitude: 14.6465, longitude: 121.0574, type: 'Apartment' },
+  { id: 'prop-qc-2', name: 'Cubao Courtyard Apartments (Example)', area: 'Cubao, Quezon City', address: 'Example location near General Romulo Avenue, Cubao, Quezon City', latitude: 14.6226, longitude: 121.0577, type: 'Apartment' },
+  { id: 'prop-qc-3', name: 'Katipunan Student Rooms (Example)', area: 'Katipunan, Quezon City', address: 'Example location near Katipunan Avenue, Quezon City', latitude: 14.6383, longitude: 121.0743, type: 'Dorm' },
+].map((property) => ({
+  ...property, ownerId: 'owner-2', mapScope: 'qc',
+  rules: ['Example house rules: no smoking inside rooms', '1 month advance, 1 month deposit'],
+  amenities: ['Wi-Fi ready', 'Study desk', 'Kitchen access'],
+  contactMethod: 'Example listing: use the demo viewing request form',
+  imageUrl: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+})));
+
 export const seedUnits = [
+  ...[
+    ['unit-qc-1', 'prop-qc-1', 'Studio A', 8500],
+    ['unit-qc-2', 'prop-qc-2', 'Apartment 2B', 14500],
+    ['unit-qc-3', 'prop-qc-3', 'Room 301', 6500],
+  ].map(([id, propertyId, unitLabel, monthlyRent]) => ({
+    id, propertyId, unitLabel, monthlyRent, deposit: monthlyRent,
+    status: 'Vacant', published: true, lastUpdated: '2026-11-18',
+    description: 'Example rental for the Quezon City map. Price, availability, and location are illustrative only.',
+  })),
   // P. Noval Scholars Boarding House (prop-1, owner-1)
   {
     id: 'unit-1',

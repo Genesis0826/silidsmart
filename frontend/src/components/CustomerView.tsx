@@ -1,9 +1,12 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import type { Property, Unit, Owner, Inquiry, AuthUser } from '../types';
 import { 
   Search, MapPin, Check, ShieldCheck, Flag, 
   Send, X, User, SlidersHorizontal, LayoutList, LayoutGrid, ChevronRight, Building2, Scale
 } from 'lucide-react';
+
+import type { MapScope } from './RentalMap';
+const RentalMap = lazy(() => import('./RentalMap').then((module) => ({ default: module.RentalMap })));
 
 const FALLBACK_LISTING_IMG =
   'data:image/svg+xml;utf8,' +
@@ -39,6 +42,7 @@ export const CustomerView = ({
   onOpenAuthModal,
 }: CustomerViewProps) => {
   const [activeTab, setActiveTab] = useState<'listings' | 'myInquiries'>('listings');
+  const [mapScope, setMapScope] = useState<MapScope>('ust');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [sortBy, setSortBy] = useState<'recommended' | 'priceAsc' | 'priceDesc'>('recommended');
 
@@ -107,9 +111,9 @@ export const CustomerView = ({
 
   // Filter options
   const areaOptions = useMemo(() => {
-    const areas = Array.from(new Set(properties.map((p) => p.area))) as string[];
+    const areas = Array.from(new Set(properties.filter((p) => p.mapScope === mapScope).map((p) => p.area))) as string[];
     return ['All', ...areas];
-  }, [properties]);
+  }, [properties, mapScope]);
 
   // All vacant & published units joined with property & owner
   const allVacantJoined = useMemo(() => {
@@ -120,12 +124,13 @@ export const CustomerView = ({
         const owner = owners.find((o) => o.id === property?.ownerId);
         return { unit, property, owner };
       })
-      .filter((item): item is { unit: Unit; property: Property; owner: Owner } => Boolean(item.property && item.owner));
-  }, [units, properties, owners]);
+      .filter((item): item is { unit: Unit; property: Property; owner: Owner } => Boolean(item.property && item.owner && item.property.mapScope === mapScope));
+  }, [units, properties, owners, mapScope]);
 
   // Filtered & sorted listings
   const availableListings = useMemo(() => {
     const filtered = allVacantJoined.filter((item) => {
+      if (item.property.mapScope !== mapScope) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchName = item.property.name.toLowerCase().includes(q);
@@ -157,7 +162,7 @@ export const CustomerView = ({
       return [...filtered].sort((a, b) => b.unit.monthlyRent - a.unit.monthlyRent);
     }
     return filtered;
-  }, [allVacantJoined, searchQuery, selectedArea, selectedType, maxPrice, verifiedOnly, selectedAmenityFilter, sortBy]);
+  }, [allVacantJoined, mapScope, searchQuery, selectedArea, selectedType, maxPrice, verifiedOnly, selectedAmenityFilter, sortBy]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
@@ -240,10 +245,10 @@ export const CustomerView = ({
                 className="editorial-heading"
                 style={{ fontSize: '2.05rem', fontWeight: 600, color: '#FFFFFF', marginBottom: '6px' }}
               >
-                Find your next dorm, condo, apartment, or boarding house near UST
+                Find a place near UST or in Quezon City
               </h1>
               <p style={{ fontSize: '0.9rem', color: '#C9D8EE', maxWidth: '680px' }}>
-                Compare real-time room vacancies, stated monthly rent, house rules, and owner verification status — <strong>100% free for renters</strong>.
+                Explore rooms and apartments, compare monthly rent, and check house rules — <strong>100% free for renters</strong>.
               </p>
             </div>
 
@@ -265,7 +270,7 @@ export const CustomerView = ({
               </button>
 
               <button
-                onClick={() => setActiveTab('myInquiries')}
+                onClick={() => currentUser?.role === 'renter' ? setActiveTab('myInquiries') : onOpenAuthModal?.()}
                 style={{
                   padding: '7px 14px',
                   borderRadius: 'var(--radius-xs)',
@@ -297,7 +302,7 @@ export const CustomerView = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search UST street, property, or amenity (e.g. España, P. Noval, Wi-Fi)"
+                placeholder="Search a street, property, or amenity"
               />
             </div>
             {searchQuery && (
@@ -399,7 +404,7 @@ export const CustomerView = ({
               <span>{inquirySuccessBanner}</span>
             </div>
             <button
-              onClick={() => setActiveTab('myInquiries')}
+              onClick={() => currentUser?.role === 'renter' ? setActiveTab('myInquiries') : onOpenAuthModal?.()}
               style={{ color: 'var(--action-blue)', fontWeight: 700, fontSize: '0.8125rem' }}
             >
               View Inquiries →
@@ -428,6 +433,16 @@ export const CustomerView = ({
           </div>
         )}
 
+        {activeTab === 'listings' && <>
+          <div className="rental-scope-toolbar">
+            <div><span className="scope-label">Explore an area</span><p>Choose an example search scope</p></div>
+            <div className="scope-options" role="group" aria-label="Rental map scope">
+              <button type="button" aria-pressed={mapScope === 'ust'} onClick={() => { setMapScope('ust'); setSelectedArea('All'); }}>Around UST</button>
+              <button type="button" aria-pressed={mapScope === 'qc'} onClick={() => { setMapScope('qc'); setSelectedArea('All'); }}>Quezon City</button>
+            </div>
+          </div>
+          <Suspense fallback={<p role="status">Loading rental map…</p>}><RentalMap scope={mapScope} listings={availableListings} onSelect={setSelectedListing} /></Suspense>
+        </>}
         {activeTab === 'listings' ? (
           /* 3. Booking.com Asymmetric 2-Column Layout: Left Faceted Filters + Right Results List */
           <div key="listings-view" className="booking-results-layout anim-view-enter">
@@ -593,7 +608,7 @@ export const CustomerView = ({
               >
                 <div>
                   <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    {selectedArea === 'All' ? 'Philippines Directory' : selectedArea}: {availableListings.length} vacant{' '}
+                    {selectedArea === 'All' ? (mapScope === 'ust' ? 'Around UST' : 'Quezon City') : selectedArea}: {availableListings.length} vacant{' '}
                     {availableListings.length === 1 ? 'unit' : 'units'} available
                   </h2>
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>

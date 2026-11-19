@@ -3,7 +3,22 @@
 ## Overview
 Tracks dated milestone status, prototype readiness, and verified acceptance gates for SilidSmart.
 
-## Project Status
+## Current pitch scope — November 18, 2026
+
+The user confirmed this is a prototype for the Saturday, November 21 pitch, not a complete production system. Scope is a clear demonstration of renter discovery, role-specific workspaces, and example UST/QC rental maps.
+
+- Removed the notice/utility strip from the navigation. Prototype labeling stays beside the map and in the footer.
+- Guests and renters see rental discovery; landlords see their own portfolio; administrators see moderation. The prototype keeps explicit example account shortcuts for presenting each role.
+- Added interactive UST/Sampaloc and QC scopes with six and three sample vacant units respectively. Price markers open rental details and share filters/counts with listing cards.
+- Added prototype cookie sessions and API access checks, account-owned inquiries, and a versioned map/account migration. These demonstrate access boundaries; they do not establish production readiness.
+- Backend verification: `npm test`, 15/15 tests pass against isolated in-memory SQLite. Frontend strict build and lint pass. Browser interactions verify all three example roles, sign-out, reload restoration, QC scope switching, and marker-to-detail navigation. A full desktop/mobile visual sweep remains unverified because the embedded preview constrained its viewport.
+- No deployment or new external service registration was requested. See [pitch walkthrough](PITCH_DEMO.md) for the local demo.
+
+## Historical assessment — November 14, 2026
+
+The following milestone record predates the user's prototype clarification and is not a claim of production readiness.
+
+### Project Status
 - **Current Milestone**: Full-Stack B2B2C Rental Management Platform (Booking.com Blue UI + Strict Role-Scoped SQLite API)
 - **Quality Gates**: PASS (TypeScript strict build `0` errors, Oxlint `0` warnings/`0` errors, Backend API & Privacy Guardrail Tests `8/8` PASS, Live Proxy HTTP 200 & Validation 400 checks PASS)
 - **Last Verified Date**: 2026-11-14

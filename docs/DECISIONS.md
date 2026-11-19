@@ -24,3 +24,9 @@ This document records key technical decisions, architectural patterns, and ratio
 ### ADR-004: Proptech Blue & Editorial Stone Anti-AI Design System
 - **Status**: Accepted
 - **Decision**: Standardize UI on `#002B66` brand navy, `#0057D9` action blue, `#F5A623` search framing, `Newsreader` + `Plus Jakarta Sans` + `JetBrains Mono` typography, hairline `gap: 1px` `.ledger-kpi-strip` summaries, `1px` borders, and native UTF-8 `₱` currency formatting without glassmorphism blur or decorative edge stripes.
+
+### ADR-005: Pitch prototype map scopes and role previews
+- **Status**: Accepted for the November 21, 2026 pitch, following the user's November 18 scope clarification.
+- **Decision**: Preserve the existing React/Node/SQLite stack, demonstrate UST and QC rental discovery with explicitly approximate sample locations, and load Leaflet only when the directory map is needed. The header exposes public discovery plus the signed-in account's own workspace; example persona selection remains in the sign-in dialog.
+- **Access boundary**: Server-issued cookie sessions enforce role and landlord ownership, and inquiries are scoped by account ID. The prototype's openly selectable example accounts intentionally demonstrate each role and are not production identity assurance.
+- **Consequences**: Add a versioned map/account migration and integration checks without introducing a hosted auth provider, new deployment target, or production-completion claim. Prototype labeling moves out of the navigation strip and remains with the map/footer.

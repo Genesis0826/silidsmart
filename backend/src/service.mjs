@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createAuthStore } from './auth.mjs';
 import {
   seedOwners,
   seedProperties,
@@ -103,6 +104,16 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
   );
   insertMigration.run('001_initial_b2b2c_schema.sql', new Date().toISOString());
 
+  const mapMigration = '002_maps_and_accounts.sql';
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version = ?').get(mapMigration)) {
+    db.exec('BEGIN;');
+    try {
+      db.exec(fs.readFileSync(path.join(__dirname, '..', 'migrations', mapMigration), 'utf8'));
+      insertMigration.run(mapMigration, new Date().toISOString());
+      db.exec('COMMIT;');
+    } catch (error) { db.exec('ROLLBACK;'); throw error; }
+  }
+
   function populateSeedData() {
     db.exec('BEGIN TRANSACTION;');
     try {
@@ -126,8 +137,8 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       }
 
       const insProp = db.prepare(`
-        INSERT INTO properties (id, owner_id, name, type, area, address, rules_json, amenities_json, contact_method, image_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO properties (id, owner_id, name, type, area, address, rules_json, amenities_json, contact_method, image_url, latitude, longitude, map_scope)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `);
       for (const p of seedProperties) {
         insProp.run(
@@ -140,7 +151,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
           JSON.stringify(p.rules),
           JSON.stringify(p.amenities),
           p.contactMethod,
-          p.imageUrl || null
+          p.imageUrl || null, p.latitude ?? null, p.longitude ?? null, p.mapScope ?? null
         );
       }
 
@@ -260,6 +271,20 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     })}`;
   };
 
+  // Add new example listings to existing demo databases without resetting user data.
+  for (const p of seedProperties) {
+    db.prepare(`INSERT OR IGNORE INTO properties (id, owner_id, name, type, area, address, rules_json, amenities_json, contact_method, image_url, latitude, longitude, map_scope)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(p.id, p.ownerId, p.name, p.type, p.area, p.address, JSON.stringify(p.rules), JSON.stringify(p.amenities), p.contactMethod, p.imageUrl || null, p.latitude ?? null, p.longitude ?? null, p.mapScope ?? null);
+    db.prepare('UPDATE properties SET latitude = ?, longitude = ?, map_scope = ? WHERE id = ? AND latitude IS NULL AND longitude IS NULL AND address = ?')
+      .run(p.latitude ?? null, p.longitude ?? null, p.mapScope ?? null, p.id, p.address);
+  }
+  for (const u of seedUnits.filter((unit) => unit.id.startsWith('unit-qc-'))) {
+    db.prepare(`INSERT OR IGNORE INTO units (id, property_id, unit_label, monthly_rent, deposit, status, published, last_updated, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(u.id, u.propertyId, u.unitLabel, u.monthlyRent, u.deposit, u.status, Number(u.published), u.lastUpdated, u.description);
+  }
+  const auth = createAuthStore(db);
+
   // Mappers
   const mapOwner = (row) => ({
     id: row.id,
@@ -288,6 +313,9 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     amenities: JSON.parse(row.amenities_json),
     contactMethod: row.contact_method,
     imageUrl: row.image_url || undefined,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    mapScope: row.map_scope,
   });
 
   const mapUnit = (row) => ({
@@ -347,6 +375,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
   });
 
   return {
+    auth,
     /**
      * Public B2C Endpoint Contract:
      * Strictly returns ONLY vacant & published units joined with property & owner trust metadata.
@@ -419,17 +448,17 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       };
     },
 
-    getPublicWorkspace() {
+    getPublicWorkspace(renterId = null) {
       const owners = db
         .prepare('SELECT id, display_name, id_review_status, id_submission_date FROM owners ORDER BY id ASC')
         .all()
         .map(mapPublicOwner);
-      const properties = db.prepare('SELECT * FROM properties ORDER BY id ASC').all().map(mapProperty);
+      const properties = db.prepare("SELECT p.* FROM properties p WHERE EXISTS (SELECT 1 FROM units u WHERE u.property_id = p.id AND u.published = 1 AND u.status = 'Vacant') ORDER BY p.id ASC").all().map(mapProperty);
       const units = db
         .prepare("SELECT * FROM units WHERE published = 1 AND status = 'Vacant' ORDER BY id ASC")
         .all()
         .map(mapUnit);
-      const inquiries = db.prepare('SELECT * FROM inquiries ORDER BY id DESC').all().map(mapInquiry);
+      const inquiries = renterId ? db.prepare('SELECT * FROM inquiries WHERE renter_id = ? ORDER BY id DESC').all(renterId).map(mapInquiry) : [];
 
       return {
         prototypeNotice: 'Concept prototype - sample properties only',
@@ -447,10 +476,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         throw new NotFoundError('OWNER_NOT_FOUND', `Owner ${ownerId} not found.`);
       }
 
-      const owners = db
-        .prepare('SELECT id, display_name, id_review_status, id_submission_date FROM owners ORDER BY id ASC')
-        .all()
-        .map((row) => (row.id === ownerId ? mapOwner(ownerRow) : mapPublicOwner(row)));
+      const owners = [mapOwner(ownerRow)];
 
       const properties = db
         .prepare('SELECT * FROM properties WHERE owner_id = ? ORDER BY id ASC')
@@ -668,11 +694,13 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       return this.getBootstrapState();
     },
 
-    submitInquiry({ unitId, propertyId, propertyName, unitLabel, renterName, renterContact, moveInDate, message }) {
+    submitInquiry({ unitId, propertyId, propertyName, unitLabel, renterName, renterContact, moveInDate, message, renterId }) {
       if (!unitId || !propertyId || !renterName || !String(renterName).trim() || !renterContact || !String(renterContact).trim()) {
         throw new ValidationError('INVALID_INQUIRY_PAYLOAD', 'unitId, propertyId, renterName, and renterContact are required.');
       }
 
+      const target = db.prepare("SELECT id FROM units WHERE id = ? AND property_id = ? AND status = 'Vacant' AND published = 1").get(unitId, propertyId);
+      if (!target) throw new ValidationError('LISTING_UNAVAILABLE', 'This listing is no longer available for viewing.');
       const id = `inq-${Date.now()}`;
       const submittedAt = nowTimestamp();
       const targetMoveIn = moveInDate || defaultMoveInIso();
@@ -691,6 +719,8 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         message ? String(message).trim() : 'Requesting in-person viewing.',
         submittedAt
       );
+
+      if (renterId) db.prepare('UPDATE inquiries SET renter_id = ? WHERE id = ?').run(renterId, id);
 
       recordEvent(
         'INQUIRY',
@@ -789,6 +819,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
 
     resetDatabase() {
       populateSeedData();
+      auth.seedDemoAccounts();
       recordEvent('SYNC', '[System Reset] All SQLite tables reset to canonical BMC seed state.');
       return this.getBootstrapState();
     },
@@ -804,6 +835,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       address = 'Sampaloc University Belt, Manila',
       initialUnitsCount = 1,
       monthlyRent = 3800,
+      account,
     }) {
       if (!displayName || !String(displayName).trim() || !propertyName || !String(propertyName).trim()) {
         throw new ValidationError('INVALID_ONBOARD_PAYLOAD', 'displayName and propertyName are required.');
@@ -820,6 +852,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       const rentNum = Math.max(1000, Math.round(Number(monthlyRent) || 3800));
       const unitsToCreate = Math.min(Math.max(1, Number(initialUnitsCount) || 1), 5);
 
+      let user;
       db.exec('BEGIN TRANSACTION;');
       try {
         db.prepare(`
@@ -834,8 +867,8 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         );
 
         db.prepare(`
-          INSERT INTO properties (id, owner_id, name, type, area, address, rules_json, amenities_json, contact_method, image_url)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO properties (id, owner_id, name, type, area, address, rules_json, amenities_json, contact_method, image_url, map_scope)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           newPropId,
           newOwnerId,
@@ -846,7 +879,8 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
           JSON.stringify(['No smoking inside rooms', 'Visitors allowed until 9:00 PM', '1 month advance, 1 month deposit']),
           JSON.stringify(['High-Speed Wi-Fi', 'Study Desk & Chair', 'Individual Sub-meter', '24/7 CCTV Security']),
           cleanContact,
-          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80'
+          'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+          /quezon city/i.test(area) ? 'qc' : /sampaloc|ust|manila/i.test(area) ? 'ust' : null
         );
 
         const insUnit = db.prepare(`
@@ -871,6 +905,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
           `[Owner Onboarding] ${cleanName} registered "${cleanPropName}" (${unitsToCreate} initial vacant unit(s)). ID queued for admin review.`
         );
 
+        if (account) user = auth.register(account, 'owner', newOwnerId);
         db.exec('COMMIT;');
       } catch (err) {
         db.exec('ROLLBACK;');
@@ -879,6 +914,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
 
       return {
         onboardedOwnerId: newOwnerId,
+        user,
         state: this.getBootstrapState(),
       };
     },

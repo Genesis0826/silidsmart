@@ -2,11 +2,14 @@
 
 SilidSmart is a mobile-first B2B2C SaaS rental operations platform and public room/apartment discovery portal tailored for small landlords (boarding houses, dormitories, and small apartments) and free-browsing renters in the Philippines.
 
+This is a **pitch prototype for Saturday, November 21, 2026**. Accounts, properties, prices, and map pins are examples for demonstrating the concept. See [the short pitch walkthrough](docs/PITCH_DEMO.md).
+
 ---
 
 ## Core B2B2C Ecosystem
 
 1. **Public Renter Directory (`CustomerView`) — ₱0 Renter Fee**
+   - Interactive UST/Sampaloc and Quezon City map scopes with rent markers linked to rental details.
    - Faceted search and sorting across vacant, published units by district, property type, monthly rent ceiling, amenities, and owner identity check status.
    - Side-by-side comparison engine (up to `3` units) comparing rent, deposit, rules, amenities, freshness stamps, and owner ID review badges.
    - Zero-commission viewing inquiry submission, status tracker, and listing discrepancy flagging.
@@ -47,9 +50,11 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173/` in a browser. The UI loads role-scoped workspaces directly from the SQLite backend (`GET /api/public/workspace` for Renters, `GET /api/owner/:ownerId/workspace` for Owners, `GET /api/bootstrap` for Admin) and shows explicit error/retry states if the API is stopped—no silent mock fallbacks are substituted.
+Open `http://localhost:5173/` in a browser. The UI loads session-authorized workspaces directly from the SQLite backend (`GET /api/public/workspace` for Renters, `GET /api/owner/:ownerId/workspace` for Owners, `GET /api/bootstrap` for Admin) and shows explicit error/retry states if the API is stopped—no silent mock fallbacks are substituted.
 
 ### Demo Sign-In Personas (`AuthModal`)
+Use **Sign in → Example accounts**. Only the selected account's workspace appears in navigation; sign out to preview another role. The notice strip has been removed from navigation; sample-data labeling remains beside the map and in the footer.
+
 | Role | Name | Notes |
 |---|---|---|
 | Renter (Free) | Juan Dela Cruz | Public directory browsing & viewing requests |
@@ -61,7 +66,7 @@ Open `http://localhost:5173/` in a browser. The UI loads role-scoped workspaces 
 ## Verification Commands
 
 ```bash
-# Backend integration, role-isolation & privacy guardrail suite (8/8 tests)
+# Backend integration, role-isolation & privacy guardrail suite (15/15 tests)
 cd backend && npm test
 
 # Frontend TypeScript check, production build & Oxlint

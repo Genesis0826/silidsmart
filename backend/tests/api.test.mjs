@@ -6,6 +6,17 @@ import { createAppServer } from '../src/server.mjs';
 describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
   let server;
   let baseUrl;
+  const cookies = new Map();
+  const emails = { owner: 'maria.santos@silidsmart.ph', renter: 'juan.delacruz@gmail.com', admin: 'governance@silidsmart.ph' };
+  const request = async (path, options = {}, selectedRole) => {
+    const role = selectedRole || (path.startsWith('/api/owner/') ? 'owner' : /bootstrap|admin|system/.test(path) ? 'admin' : options.method === 'POST' && path.startsWith('/api/public/') ? 'renter' : null);
+    if (role && !cookies.has(role)) {
+      const login = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier: emails[role], password: 'password123' }) });
+      assert.equal(login.status, 200);
+      cookies.set(role, login.headers.get('set-cookie').split(';')[0]);
+    }
+    return fetch(`${baseUrl}${path}`, { ...options, headers: { ...options.headers, ...(role ? { Cookie: cookies.get(role) } : {}) } });
+  };
 
   before(async () => {
     const service = createSilidSmartService(':memory:');
@@ -39,14 +50,14 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
   });
 
   it('2. Public Directory API (/api/public/listings) returns only Vacant published units and leaks 0 tenant PII', async () => {
-    const res = await fetch(`${baseUrl}/api/public/listings`);
+    const res = await request('/api/public/listings');
     assert.equal(res.status, 200);
     const body = await res.json();
 
     assert.equal(body.prototypeNotice, 'Concept prototype - sample properties only');
     assert.equal(body.renterFeePhp, 0);
     assert.ok(Array.isArray(body.listings));
-    assert.equal(body.listings.length, 6); // 6 vacant units out of 13 total seed units
+    assert.equal(body.listings.length, 9); // 6 UST + 3 Quezon City vacant example units
 
     const rawJsonString = JSON.stringify(body);
     // Verify zero tenant names or contacts leak into public payload
@@ -66,7 +77,7 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
   });
 
   it('3. Real-Time Vacancy Sync: Marking unit-2 Occupied creates private tenant/ledger and delists from public search', async () => {
-    const patchRes = await fetch(`${baseUrl}/api/owner/units/unit-2/occupancy`, {
+    const patchRes = await request('/api/owner/units/unit-2/occupancy', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -89,14 +100,14 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     assert.equal(addedRent.paymentStatus, 'Due');
 
     // Verify unit-2 immediately vanished from public directory search
-    const pubRes = await fetch(`${baseUrl}/api/public/listings`);
+    const pubRes = await request('/api/public/listings');
     const pubBody = await pubRes.json();
     assert.equal(pubBody.listings.some((l) => l.unitId === 'unit-2'), false);
-    assert.equal(pubBody.listings.length, 5);
+    assert.equal(pubBody.listings.length, 8);
   });
 
   it('4. Input validation rejects invalid payloads with 400 Bad Request', async () => {
-    const badRes = await fetch(`${baseUrl}/api/owner/units/unit-2/occupancy`, {
+    const badRes = await request('/api/owner/units/unit-2/occupancy', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ newStatus: 'InvalidState' }),
@@ -108,7 +119,7 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
 
   it('5. Inquiry, Moderation, and System Reset workflows execute cleanly', async () => {
     // Submit viewing inquiry
-    const inqRes = await fetch(`${baseUrl}/api/public/inquiries`, {
+    const inqRes = await request('/api/public/inquiries', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -125,7 +136,7 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     assert.equal(inqRes.status, 201);
 
     // Admin approves owner-3 ID review
-    const adminRes = await fetch(`${baseUrl}/api/admin/owners/owner-3/id-review`, {
+    const adminRes = await request('/api/admin/owners/owner-3/id-review', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ newStatus: 'ID reviewed' }),
@@ -136,18 +147,19 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     assert.equal(owner3.idReviewStatus, 'ID reviewed');
 
     // Reset system back to seed state
-    const resetRes = await fetch(`${baseUrl}/api/system/reset`, { method: 'POST' });
+    const resetRes = await request('/api/system/reset', { method: 'POST' });
     assert.equal(resetRes.status, 200);
     const resetState = await resetRes.json();
-    assert.equal(resetState.units.filter((u) => u.status === 'Vacant' && u.published).length, 6);
+    assert.equal(resetState.units.filter((u) => u.status === 'Vacant' && u.published).length, 9);
   });
 
   it('6. Assisted Owner Onboarding (/api/owners/onboard) creates owner, property, and starter vacant units', async () => {
-    const onboardRes = await fetch(`${baseUrl}/api/owners/onboard`, {
+    const onboardRes = await request('/api/owners/onboard', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ownerId: 'owner-test-99',
+        email: 'lorna@silidsmart.ph', password: 'test-password-123',
         displayName: 'Lorna Tolentino',
         contactMethod: '0917-888-1122 / lorna@silidsmart.ph',
         idDocumentName: 'PhilSys_National_ID.pdf',
@@ -163,21 +175,21 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     const onboardBody = await onboardRes.json();
     assert.equal(onboardBody.onboardedOwnerId, 'owner-test-99');
 
-    const createdOwner = onboardBody.state.owners.find((o) => o.id === 'owner-test-99');
-    assert.ok(createdOwner);
-    assert.equal(createdOwner.idReviewStatus, 'Pending review');
+    assert.equal(onboardBody.user.ownerId, 'owner-test-99');
+    assert.equal(onboardBody.user.role, 'owner');
+    assert.equal('state' in onboardBody, false);
 
     // Verify new vacant units are immediately searchable in public directory
-    const pubRes = await fetch(`${baseUrl}/api/public/listings`);
+    const pubRes = await request('/api/public/listings');
     const pubBody = await pubRes.json();
-    assert.equal(pubBody.listings.length, 8); // 6 seed vacant + 2 newly onboarded vacant units
+    assert.equal(pubBody.listings.length, 11); // 9 seed vacant + 2 newly onboarded vacant units
   });
 
   it('7. Public Workspace (/api/public/workspace) isolates public B2C listings from private PII & occupied units', async () => {
-    const resetRes = await fetch(`${baseUrl}/api/system/reset`, { method: 'POST' });
+    const resetRes = await request('/api/system/reset', { method: 'POST' });
     assert.equal(resetRes.status, 200);
 
-    const res = await fetch(`${baseUrl}/api/public/workspace`);
+    const res = await request('/api/public/workspace');
     assert.equal(res.status, 200);
     const body = await res.json();
 
@@ -193,8 +205,8 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     assert.equal(body.owners.every((o) => !('idDocumentName' in o) && !('contactMethod' in o)), true);
   });
 
-  it('8. Owner-Scoped Workspace (/api/owner/:ownerId/workspace) isolates each landlord portfolio and returns 404 for unknown owner', async () => {
-    const res = await fetch(`${baseUrl}/api/owner/owner-1/workspace`);
+  it('8. Owner-Scoped Workspace (/api/owner/:ownerId/workspace) isolates each landlord portfolio and denies access to another portfolio', async () => {
+    const res = await request('/api/owner/owner-1/workspace');
     assert.equal(res.status, 200);
     const body = await res.json();
 
@@ -208,16 +220,116 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     assert.equal(body.inquiries.every((i) => ownedPropIds.has(i.propertyId)), true);
     assert.equal(body.subscription.managedUnits, body.units.length);
 
-    // Other owners in the directory should not leak contactMethod or idDocumentName
-    const otherOwner = body.owners.find((o) => o.id === 'owner-2');
-    assert.ok(otherOwner);
-    assert.equal('idDocumentName' in otherOwner, false);
-    assert.equal('contactMethod' in otherOwner, false);
+    assert.deepEqual(body.owners.map((owner) => owner.id), ['owner-1']);
+    const missingRes = await request('/api/owner/owner-does-not-exist/workspace');
+    assert.equal(missingRes.status, 403);
 
-    // Unknown owner returns 404
-    const missingRes = await fetch(`${baseUrl}/api/owner/owner-does-not-exist/workspace`);
-    assert.equal(missingRes.status, 404);
-    const missingBody = await missingRes.json();
-    assert.equal(missingBody.error.code, 'OWNER_NOT_FOUND');
+  });
+
+  it('9. Guests cannot read private workspaces or write owner/admin records', async () => {
+    for (const [path, method] of [
+      ['/api/bootstrap', 'GET'], ['/api/owner/owner-1/workspace', 'GET'],
+      ['/api/owner/units/unit-2/occupancy', 'PATCH'], ['/api/system/reset', 'POST'],
+      ['/api/public/inquiries', 'POST'], ['/api/public/reports', 'POST'],
+    ]) {
+      const res = await fetch(`${baseUrl}${path}`, { method, headers: { 'Content-Type': 'application/json' }, ...(method === 'GET' ? {} : { body: '{}' }) });
+      assert.equal(res.status, 401, path);
+    }
+    assert.deepEqual((await (await request('/api/public/workspace')).json()).inquiries, []);
+  });
+
+  it('10. Renters cannot access landlord/admin endpoints even with forged role fields', async () => {
+    for (const path of ['/api/bootstrap', '/api/owner/owner-1/workspace', '/api/owner/owner-1/subscription']) {
+      assert.equal((await request(path, {}, 'renter')).status, 403, path);
+    }
+    const res = await request('/api/admin/owners/owner-1/id-review', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: 'admin', newStatus: 'Needs correction' }),
+    }, 'renter');
+    assert.equal(res.status, 403);
+  });
+
+  it('11. Landlords cannot mutate other portfolios or receive platform-wide mutation responses', async () => {
+    for (const [path, body] of [
+      ['/api/owner/units/unit-6/occupancy', { newStatus: 'Occupied' }],
+      ['/api/owner/units', { propertyId: 'prop-2', unitLabel: 'Unauthorized', monthlyRent: 5000 }],
+    ]) {
+      const res = await request(path, { method: path.endsWith('/units') ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      assert.equal(res.status, 403);
+    }
+    const res = await request('/api/owner/units/unit-2/occupancy', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newStatus: 'Vacant' }),
+    });
+    const body = await res.json();
+    assert.equal(res.status, 200);
+    assert.ok(body.properties.every((property) => property.ownerId === 'owner-1'));
+    assert.equal('listingReports' in body, false);
+    assert.equal('systemEvents' in body, false);
+    assert.equal((await request('/api/bootstrap', {}, 'owner')).status, 403);
+  });
+
+  it('12. Server account identity scopes viewing requests, including forged renter IDs and shared contact details', async () => {
+    const registered = await fetch(`${baseUrl}/api/auth/register`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Juan Dela Cruz', email: 'another-renter@example.ph', phone: '0918-123-4567', password: 'test-password-123', role: 'admin', ownerId: 'owner-1' }),
+    });
+    assert.equal(registered.status, 201);
+    const account = await registered.json();
+    assert.equal(account.user.role, 'renter');
+    assert.equal(account.user.ownerId, undefined);
+    const cookie = registered.headers.get('set-cookie').split(';')[0];
+    const submitted = await fetch(`${baseUrl}/api/public/inquiries`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify({ unitId: 'unit-2', propertyId: 'prop-1', renterName: 'Juan Dela Cruz', renterContact: '0918-123-4567', renterId: 'user-renter-1', message: 'Private second renter request' }),
+    });
+    assert.equal(submitted.status, 201);
+    const own = await submitted.json();
+    assert.equal(own.inquiries.length, 1);
+    assert.equal(own.inquiries[0].message, 'Private second renter request');
+    assert.equal('tenants' in own, false);
+    assert.equal('rentRecords' in own, false);
+    const other = await (await request('/api/public/workspace', {}, 'renter')).json();
+    assert.equal(other.inquiries.some((inquiry) => inquiry.message === 'Private second renter request'), false);
+    const guest = await (await request('/api/public/workspace')).json();
+    assert.deepEqual(guest.inquiries, []);
+  });
+
+  it('13. Password validation rejects invented identities and sessions are revoked on logout', async () => {
+    for (const [identifier, password] of [['admin@unknown.ph', 'password123'], ['maria.santos@silidsmart.ph', 'incorrect']]) {
+      const res = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier, password, role: 'admin' }) });
+      assert.equal(res.status, 401);
+      assert.equal(res.headers.get('set-cookie'), null);
+    }
+    const logout = await request('/api/auth/logout', { method: 'POST' }, 'owner');
+    assert.equal(logout.status, 200);
+    assert.equal((await request('/api/owner/owner-1/workspace', {}, 'owner')).status, 401);
+    cookies.delete('owner');
+    const login = await request('/api/owner/owner-1/workspace');
+    assert.equal(login.status, 200);
+  });
+
+  it('14. Map inventory contains only vacant published rentals with explicit UST and QC example coordinates', async () => {
+    const body = await (await request('/api/public/workspace')).json();
+    const scoped = (scope) => body.properties.filter((property) => property.mapScope === scope);
+    assert.equal(scoped('ust').length, 5);
+    assert.equal(scoped('qc').length, 3);
+    for (const property of [...scoped('ust'), ...scoped('qc')]) {
+      assert.ok(property.latitude > 14.5 && property.latitude < 14.8);
+      assert.ok(property.longitude > 120.9 && property.longitude < 121.2);
+      assert.ok(body.units.some((unit) => unit.propertyId === property.id && unit.status === 'Vacant' && unit.published));
+    }
+    assert.ok(scoped('qc').every((property) => property.name.includes('(Example)')));
+  });
+
+  it('15. Invalid owner account registration rolls back the property and account together', async () => {
+    const before = await (await request('/api/bootstrap')).json();
+    const response = await fetch(`${baseUrl}/api/owners/onboard`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerId: 'owner-invalid-account', displayName: 'Invalid account', propertyName: 'Must not exist', email: 'invalid-email', password: 'short' }),
+    });
+    assert.equal(response.status, 400);
+    const after = await (await request('/api/bootstrap')).json();
+    assert.equal(after.properties.length, before.properties.length);
+    assert.equal(after.owners.length, before.owners.length);
   });
 });
