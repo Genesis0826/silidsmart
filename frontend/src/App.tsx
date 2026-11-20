@@ -14,6 +14,9 @@ import type {
   AuthUser,
   ShortStay,
   ShortStayInput,
+  UtilityRecord,
+  UtilityInput,
+  DirectorySettings,
 } from './types';
 import { initialUsers } from './seedData';
 import { RoleSwitcher } from './components/RoleSwitcher';
@@ -39,6 +42,7 @@ interface OwnerWorkspacePayload {
   rentRecords: RentRecord[];
   inquiries: Inquiry[];
   shortStays: ShortStay[];
+  utilityRecords: UtilityRecord[];
 }
 
 interface BootstrapPayload {
@@ -53,7 +57,7 @@ interface BootstrapPayload {
 }
 
 function getWorkspaceUrl(role: UserRole, ownerId: string): string {
-  if (role === 'renter') return '/api/public/workspace';
+  if (role === 'renter') return '/api/public/workspace?availability=all';
   if (role === 'owner') return `/api/owner/${encodeURIComponent(ownerId)}/workspace`;
   return '/api/bootstrap';
 }
@@ -83,6 +87,7 @@ export function App() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [rentRecords, setRentRecords] = useState<RentRecord[]>([]);
   const [shortStays, setShortStays] = useState<ShortStay[]>([]);
+  const [utilityRecords, setUtilityRecords] = useState<UtilityRecord[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [listingReports, setListingReports] = useState<ListingReport[]>([]);
   const [systemEvents, setSystemEvents] = useState<SystemEvent[]>([]);
@@ -123,6 +128,7 @@ export function App() {
         setTenants([]);
         setRentRecords([]);
         setShortStays([]);
+        setUtilityRecords([]);
         setListingReports([]);
         setSystemEvents([]);
       } else if (role === 'owner') {
@@ -133,12 +139,14 @@ export function App() {
         setTenants(data.tenants);
         setRentRecords(data.rentRecords);
         setShortStays(data.shortStays);
+        setUtilityRecords(data.utilityRecords);
         setInquiries(data.inquiries);
         setListingReports([]);
         setSystemEvents([]);
       } else {
         const data = payload as BootstrapPayload;
         setShortStays([]);
+        setUtilityRecords([]);
         setOwners(data.owners);
         setProperties(data.properties);
         setUnits(data.units);
@@ -209,6 +217,7 @@ export function App() {
           setTenants([]);
           setRentRecords([]);
           setShortStays([]);
+          setUtilityRecords([]);
           setListingReports([]);
           setSystemEvents([]);
         } else if (currentRole === 'owner') {
@@ -219,12 +228,14 @@ export function App() {
           setTenants(data.tenants);
           setRentRecords(data.rentRecords);
           setShortStays(data.shortStays);
+          setUtilityRecords(data.utilityRecords);
           setInquiries(data.inquiries);
           setListingReports([]);
           setSystemEvents([]);
         } else {
           const data = payload as BootstrapPayload;
           setShortStays([]);
+          setUtilityRecords([]);
           setOwners(data.owners);
           setProperties(data.properties);
           setUnits(data.units);
@@ -311,6 +322,7 @@ export function App() {
     setOwners([]); setProperties([]); setUnits([]); setTenants([]);
     setRentRecords([]); setInquiries([]); setListingReports([]); setSystemEvents([]);
     setShortStays([]);
+    setUtilityRecords([]);
   };
 
   const handleLogin = async (user: AuthUser, password = 'password123', register = false): Promise<boolean> => {
@@ -423,6 +435,20 @@ export function App() {
   const handleUpdateShortStay = async (id: string, status: ShortStay['status']): Promise<boolean> => {
     const result = await executeMutation(`/api/owner/short-stays/${encodeURIComponent(id)}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
+    });
+    return result.ok;
+  };
+
+  const handleDirectorySettings = async (unitId: string, settings: DirectorySettings): Promise<boolean> => {
+    const result = await executeMutation(`/api/owner/units/${encodeURIComponent(unitId)}/directory`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings),
+    });
+    return result.ok;
+  };
+
+  const handleSaveUtility = async (bill: UtilityInput, id?: string): Promise<boolean> => {
+    const result = await executeMutation(id ? `/api/owner/utility-records/${encodeURIComponent(id)}` : '/api/owner/utility-records', {
+      method: id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bill),
     });
     return result.ok;
   };
@@ -639,6 +665,9 @@ export function App() {
             shortStays={shortStays}
             onRecordShortStay={handleRecordShortStay}
             onUpdateShortStay={handleUpdateShortStay}
+            utilityRecords={utilityRecords}
+            onSaveUtility={handleSaveUtility}
+            onDirectorySettings={handleDirectorySettings}
           />
         )}
 

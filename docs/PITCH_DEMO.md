@@ -30,7 +30,8 @@ Use this as an illustrative scenario, not a claim that interviews or market rese
 - Show the UST map, then switch to Quezon City. Explain that these are example scopes with sample rentals and approximate map pins.
 - Open a price marker and rental details. Point out monthly rent, deposit, amenities, and house rules.
 - Sign in as Maria Santos. Show **My properties**, the vacancy controls, and the private tenant/rent views. Explain that each role has its own workspace.
-- After rehearsing this step, mark one of Maria's vacant rooms occupied, then use **Find a rental** to show that room removed from public results. Use the same room throughout. A building's marker may remain if it has other vacant rooms.
+- Mark one of Maria's published vacant rooms occupied, then use **Find a rental → Available now** to show it excluded after reload. Switch to **All published units** to show the same unit labelled Occupied — unavailable now. Optional owner estimates are not guarantees and do not change status. Use the same room throughout; its building marker may remain for other units.
+- Optional Q&A: show **Directory settings** to hide/publish a unit and set an occupied unit's expected availability. Show **Utility Tracker** to record an electricity/water bill and manually mark it Paid with date/reference. These are private records, not payment collection or verification.
 
 “The owner updates availability once, and that same record controls what renters can find.”
 
@@ -38,7 +39,7 @@ Avoid spending the presentation opening every tab. Keep admin moderation as an o
 
 ### 4. Business model — 40 seconds
 
-“Our proposed business model keeps rental browsing free. Small landlords pay a monthly subscription based on how many rooms or apartment units they manage, starting at ₱99 per month for up to ten units. The subscription brings vacancy listings and basic rental records into one workspace.”
+“Our proposed model keeps renter browsing and inquiries free. Owners have no monthly fee for one to four units; five to ten costs ₱99, eleven to twenty-five ₱199, and twenty-six to fifty ₱349. A separate 5% owner-paid fee is calculated on owner-reported completed SilidSmart short stays. The prototype does not collect or verify rent, subscriptions, utilities or commissions.”
 
 If asked: proposed tiers are 1–4 units Free, 5–10 at ₱99/month, 11–25 at ₱199/month, 26–50 at ₱349/month, and a custom quote above 50. All plans calculate a separate 5% owner-paid fee on owner-reported completed SilidSmart-sourced short stays. Owners can demonstrate the private Short Stays & Commission ledger; it does not reserve dates or collect payments. Pricing is a proposal to validate, not demonstrated willingness to pay or collected revenue.
 

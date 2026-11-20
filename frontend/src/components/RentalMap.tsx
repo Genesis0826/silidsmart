@@ -48,7 +48,7 @@ export function RentalMap({ scope, listings, onSelect }: RentalMapProps) {
       label.textContent = `₱${price.toLocaleString()}`;
       const marker = L.marker(position, {
         icon: L.divIcon({ className: 'rental-price-marker', html: label, iconSize: [88, 32], iconAnchor: [44, 16] }),
-        title: `${property.name}: from ₱${price.toLocaleString()} per month`,
+        title: `${property.name}: from ₱${price.toLocaleString()} per month · ${group.filter(({ unit }) => unit.status === 'Vacant').length} vacant / ${group.length} published`,
       }).addTo(map);
       const popup = document.createElement('div');
       const title = document.createElement('strong');
@@ -60,7 +60,7 @@ export function RentalMap({ scope, listings, onSelect }: RentalMapProps) {
       for (const listing of group) {
         const button = document.createElement('button');
         button.className = 'map-listing-link';
-        button.textContent = `${listing.unit.unitLabel} · ₱${listing.unit.monthlyRent.toLocaleString()}/mo →`;
+        button.textContent = `${listing.unit.unitLabel} · ${listing.unit.status === 'Vacant' ? 'Available now' : 'Occupied — unavailable now'} · ₱${listing.unit.monthlyRent.toLocaleString()}/mo →`;
         button.addEventListener('click', () => onSelect(listing));
         popup.append(button);
       }
@@ -77,7 +77,7 @@ export function RentalMap({ scope, listings, onSelect }: RentalMapProps) {
 
   return <section className="rental-map-panel" aria-label={`Rental map around ${scope === 'ust' ? 'UST' : 'Quezon City'}`}>
     <div className="rental-map-heading">
-      <div><h2>{scope === 'ust' ? 'Around UST, Sampaloc' : 'Around Quezon City'}</h2><p>Example scope · {mappedListings.length} available rentals · Select a price to see rooms and apartments.</p></div>
+      <div><h2>{scope === 'ust' ? 'Around UST, Sampaloc' : 'Around Quezon City'}</h2><p>Example scope · {mappedListings.length} matching units ({mappedListings.filter(({ unit }) => unit.status === 'Vacant').length} vacant) · Select a price to see status and details.</p></div>
       <span className="mono-num">Monthly rent in PHP</span>
     </div>
     <div ref={containerRef} className="rental-map" role="region" aria-label="Interactive rental locations" />

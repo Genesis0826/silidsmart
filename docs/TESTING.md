@@ -39,4 +39,8 @@ Manual local browser checks cover guest navigation, all three example role login
 
 ## November 20 pricing and short-stay checks
 
-The suite now has 18 tests. Tests 16–18 verify a PHP 1,500 stay yields PHP 75 at a server-enforced 5%, centavo rounding, source and cancellation/restoration rules, persisted workspace reloads, invalid dates/rent/source/status, no occupancy/monthly-ledger side effects, public privacy, guest/renter denial, cross-owner isolation, and the same fee for a three-unit Free owner. These are manual record/calculation checks, not payment collection or production billing evidence.
+The pricing/short-stay checkpoint had 18 tests. Tests 16–18 verify a PHP 1,500 stay yields PHP 75 at a server-enforced 5%, centavo rounding, source and cancellation/restoration rules, persisted workspace reloads, invalid dates/rent/source/status, no occupancy/monthly-ledger side effects, public privacy, guest/renter denial, cross-owner isolation, and the same fee for a three-unit Free owner. These are manual record/calculation checks, not payment collection or production billing evidence.
+
+## November 20 directory and utility checks
+
+The current suite has 21 tests. Tests 19–21 cover Available now versus All published units, owner publication/expected dates, no automatic vacancy or republishing of hidden units, occupied-unit inquiry denial, invalid filters/dates/publication, utility centavos and duplicate identity, payment field validation/correction, reload persistence, no rent/short-stay side effects, public privacy, cross-owner/role/guest denial and reset cleanup. The schema upgrade is additionally checked on a disposable copy of the pre-existing database; it must retain old rows/publication and legacy short-stay fees, apply once, and retain utility/directory updates across reopening.

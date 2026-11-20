@@ -39,3 +39,9 @@ The migration runs once and is recorded in `schema_migrations`. Startup inserts 
 ## Migration 003 — private short-stay records
 
 `003_short_stay_records.sql` adds `short_stay_records`, one row per owner-reported completed stay, joined to a unit by a cascading foreign key and indexed by unit. Stores private guest name, ISO check-in/out dates, rent in integer centavos, source (`SilidSmart` or `Other`), status (`Completed` or `Cancelled`), fixed 5% policy snapshot, and creation timestamp. Commission is derived on read and rounded in centavos, with zero for other-source or cancelled entries. It is not a payment receipt or a calendar reservation. Only that unit's owner workspace queries these rows; public responses and admin bootstrap omit them. Startup applies the versioned migration once without resetting existing records; explicit demo reset removes entries. Rollback requires dropping this table and removing its migration tracking row after reverting the dependent code.
+
+## Migration 004 — directory estimate and private utility bills
+
+`004_directory_and_utilities.sql` adds nullable `units.expected_available_from` as an owner-provided public estimate, distinct from private tenant/contract dates. Existing `published` choices and occupancy are preserved. Public query scope separates available published vacancies from all published units.
+
+`utility_records` stores one bill per `(unit_id, utility_type, billing_month)`, enforced by a unique index which also supports unit-scoped joins. Unit foreign keys cascade. Stores Electricity/Water, month, integer centavos, due date, manual status, conditional payment date/reference, and timestamp. A CHECK enforces payment date presence only for Paid. Both public scopes and admin bootstrap omit these private records. Startup applies once and keeps existing data; demo reset removes bills. Rollback after reverting dependent code drops the table, drops the new units column, and removes the migration tracking row.

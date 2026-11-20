@@ -10,12 +10,13 @@ This is a **pitch prototype for Saturday, November 21, 2026**. Accounts, propert
 
 1. **Public Renter Directory (`CustomerView`) — ₱0 Renter Fee**
    - Interactive UST/Sampaloc and Quezon City map scopes with rent markers linked to rental details.
-   - Faceted search and sorting across vacant, published units by district, property type, monthly rent ceiling, amenities, and owner identity check status.
+   - Faceted search defaults to **Available now** (published vacancies); **All published units** also shows occupied units with an unavailable label and optional owner-estimated availability date. Filters, maps and comparison use public unit specifications only.
    - Side-by-side comparison engine (up to `3` units) comparing rent, deposit, rules, amenities, freshness stamps, and owner ID review badges.
    - Zero-commission viewing inquiry submission, status tracker, and listing discrepancy flagging.
 2. **Private Owner Operations (`OwnerView`) — Single-Entry Vacancy Sync**
    - Manage room/unit inventory (`1 room or 1 apartment = 1 count`), toggle occupancy (`Vacant` / `Occupied`), and record move-in tenants and rent payment statuses (`Paid`, `Due`, `Overdue`).
-   - Marking a unit `Occupied` atomically hides it from public search and creates private tenant + rent ledger rows; marking `Vacant` republishes it immediately.
+   - Marking a unit `Occupied` excludes it from Available now and creates private tenant/rent rows when tenant details are supplied. Publication stays under owner control through **Directory settings**; published occupied units remain in All published units. Marking Vacant clears the availability estimate and preserves publication.
+   - Private **Utility Tracker** for electricity/water bills by unit/month, amounts, due dates and manual Paid/Due/Overdue labels, with payment date/reference when marked Paid. Owners can correct bill amount/due date/payment fields and filter records. No utility payment is processed or verified, and utility amounts never enter the short-stay commission base.
    - Generate printable property gate QR posters and auto-synced Facebook & community group vacancy posts (`QR Poster & FB Share` tab).
    - Proposed monthly subscriptions (`1–4: Free`, `5–10: ₱99/mo`, `11–25: ₱199/mo`, `26–50: ₱349/mo`, `>50: Custom Quote`). All tiers share core management tools; an empty portfolio has no monthly charge.
    - Private **Short Stays & Commission** ledger: owners record completed stays and accommodation rent; SilidSmart-sourced stays calculate a separate **5% owner-paid commission** on every plan. Other-source/cancelled stays have no commission. Entries do not reserve dates or change occupancy.
@@ -68,7 +69,7 @@ Use **Sign in → Example accounts**. Only the selected account's workspace appe
 ## Verification Commands
 
 ```bash
-# Backend integration, role-isolation & privacy guardrail suite (18 tests)
+# Backend integration, role-isolation & privacy guardrail suite (21 tests)
 cd backend && npm test
 
 # Frontend TypeScript check, production build & Oxlint

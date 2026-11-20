@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Property, Unit, Tenant, RentRecord, Inquiry, Owner, RentPaymentStatus, ShortStay, ShortStayInput } from '../types';
+import type { Property, Unit, Tenant, RentRecord, Inquiry, Owner, RentPaymentStatus, ShortStay, ShortStayInput, UtilityRecord, UtilityInput, DirectorySettings } from '../types';
 import {
   Plus, Shield, BarChart3, Download, Search,
   Check, X, FileText, Info, RefreshCw, Rows3, Rows4, QrCode, Share2, Copy, UserCheck
@@ -7,6 +7,8 @@ import {
 import { downloadCsv } from '../utils/exportCsv';
 import { ownerPlan } from '../utils/pricing';
 import { ShortStayLedger } from './ShortStayLedger';
+import { UtilityTracker } from './UtilityTracker';
+import { UnitDirectorySettings } from './UnitDirectorySettings';
 
 interface OwnerViewProps {
   owner: Owner;
@@ -18,6 +20,9 @@ interface OwnerViewProps {
   shortStays: ShortStay[];
   onRecordShortStay: (stay: ShortStayInput) => Promise<boolean>;
   onUpdateShortStay: (id: string, status: ShortStay['status']) => Promise<boolean>;
+  utilityRecords: UtilityRecord[];
+  onSaveUtility: (bill: UtilityInput, id?: string) => Promise<boolean>;
+  onDirectorySettings: (unitId: string, settings: DirectorySettings) => Promise<boolean>;
   onToggleOccupancy: (
     unitId: string,
     newStatus: 'Vacant' | 'Occupied',
@@ -38,12 +43,16 @@ export const OwnerView = ({
   shortStays,
   onRecordShortStay,
   onUpdateShortStay,
+  utilityRecords,
+  onSaveUtility,
+  onDirectorySettings,
   onToggleOccupancy,
   onAddUnit,
   onUpdateRentStatus,
   onRespondInquiry,
 }: OwnerViewProps) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays' | 'utilities'>('inventory');
+  const [directoryUnit, setDirectoryUnit] = useState<Unit | null>(null);
   const [tableDensity, setTableDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [copiedPostToast, setCopiedPostToast] = useState<string | null>(null);
 
@@ -343,7 +352,7 @@ export const OwnerView = ({
               {occupiedUnits} <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--action-blue)' }}>({occupancyRate}%)</span>
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-              Delisted from public search
+              Excluded from Available now
             </div>
           </div>
 
@@ -428,6 +437,11 @@ export const OwnerView = ({
                 <span>Short Stays & Commission</span>
               </button>
 
+              <button onClick={() => setActiveTab('utilities')}
+                className={`saas-nav-item ${activeTab === 'utilities' ? 'active' : ''}`}>
+                <span>Utility Tracker</span>
+              </button>
+
               <button
                 onClick={() => setActiveTab('outreach')}
                 className={`saas-nav-item ${activeTab === 'outreach' ? 'active' : ''}`}
@@ -460,7 +474,7 @@ export const OwnerView = ({
                 <span>Automated Public Sync</span>
               </div>
               <p style={{ lineHeight: 1.4, color: 'var(--text-secondary)' }}>
-                Marking a unit <strong>Occupied</strong> hides it from the public directory immediately. Marking it <strong>Vacant</strong> publishes it with today's timestamp.
+                Occupancy controls Available now results. Use Directory settings to publish or hide a unit; published occupied units remain visible in All published units. Expected dates never change occupancy automatically.
               </p>
             </div>
           </aside>
@@ -601,15 +615,17 @@ export const OwnerView = ({
                               </span>
                             </td>
                             <td style={{ padding: cellPad }}>
-                              {unit.status === 'Vacant' && unit.published ? (
+                              {unit.published ? (
                                 <span style={{ color: 'var(--status-green)', fontWeight: 600, fontSize: '0.8rem' }}>
-                                  ● Published & Searchable
+                                  {unit.status === 'Vacant' ? '● Available now' : '● Published · Occupied'}
                                 </span>
                               ) : (
                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                                   ○ Delisted (Hidden from public)
                                 </span>
                               )}
+                              {unit.status === 'Occupied' && unit.expectedAvailableFrom && <div className="mono-num" style={{ fontSize: '0.75rem', marginTop: '5px' }}>Expected: {unit.expectedAvailableFrom}</div>}
+                              <button type="button" className="btn btn-outline btn-sm" style={{ marginTop: '6px' }} onClick={() => setDirectoryUnit(unit)}>Directory settings</button>
                             </td>
                             <td className="mono-num" style={{ padding: cellPad, color: 'var(--text-muted)', fontSize: '0.8rem' }}>
                               {unit.lastUpdated}
@@ -627,7 +643,7 @@ export const OwnerView = ({
                                   onClick={() => onToggleOccupancy(unit.id, 'Vacant')}
                                   className="btn btn-primary btn-sm"
                                 >
-                                  Mark Vacant & Publish
+                                  Mark as Vacant
                                 </button>
                               )}
                             </td>
@@ -1308,7 +1324,7 @@ export const OwnerView = ({
                                  color: 'var(--status-green)',
                                  fontWeight: 700,
                                }}
-                               title="Approve inquiry, assign renter to private tenant roster, create rent ledger, and delist unit from public directory"
+                               title="Approve inquiry, create private tenant/rent records, and exclude this unit from Available now"
                              >
                                <UserCheck size={14} /> Move In & Mark Occupied
                              </button>
@@ -1525,6 +1541,9 @@ export const OwnerView = ({
               <ShortStayLedger units={ownerUnits} properties={ownerProperties} stays={shortStays}
                 onRecord={onRecordShortStay} onUpdateStatus={onUpdateShortStay} />
             )}
+            {activeTab === 'utilities' && (
+              <UtilityTracker units={ownerUnits} properties={ownerProperties} records={utilityRecords} onSave={onSaveUtility} />
+            )}
             {activeTab === 'plans' && (
               <div className="card" style={{ padding: '24px' }}>
                 <div style={{ marginBottom: '20px' }}>
@@ -1647,6 +1666,7 @@ export const OwnerView = ({
       </div>
 
       {/* Modal: Add Room / Unit */}
+      {directoryUnit && <UnitDirectorySettings key={directoryUnit.id} unit={directoryUnit} onClose={() => setDirectoryUnit(null)} onSave={onDirectorySettings} />}
       {isAddUnitOpen && (
         <div className="modal-overlay" onClick={() => setIsAddUnitOpen(false)}>
           <div className="modal-content" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
@@ -1764,7 +1784,7 @@ export const OwnerView = ({
             <form onSubmit={handleConfirmOccupied}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                  Confirming occupancy will <strong>immediately delist {occupancyModalUnit.unitLabel}</strong> from public renter search results.
+                  Confirming occupancy will <strong>exclude {occupancyModalUnit.unitLabel} from Available now</strong>. If published, it remains visible as occupied in All published units. Tenant details stay private.
                 </p>
                 <div>
                   <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, marginBottom: '4px' }}>
@@ -1807,7 +1827,7 @@ export const OwnerView = ({
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary btn-sm">
-                  Confirm Occupied & Delist
+                  Confirm Occupied
                 </button>
               </div>
             </form>

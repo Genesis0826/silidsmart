@@ -785,7 +785,7 @@ export const AdminView = ({
                                 prop?.name || '',
                                 u.status,
                                 assignedTenant ? `${assignedTenant.name} (Isolated)` : 'Unoccupied',
-                                u.status === 'Occupied' ? 'Delisted from public' : 'Only room specs & rent',
+                                !u.published ? 'Hidden from directory' : u.status === 'Occupied' ? 'Public occupied status and estimate; no tenant data' : 'Public vacancy specs and rent',
                                 'PASS',
                               ];
                             })
@@ -805,7 +805,7 @@ export const AdminView = ({
                           onClick={() => setPrivacyStatusFilter(status)}
                           className={`btn btn-sm ${privacyStatusFilter === status ? 'btn-primary' : 'btn-secondary'}`}
                         >
-                          {status === 'All' ? 'All Units' : status === 'Occupied' ? 'Occupied (Isolated)' : 'Vacant (Public)'}
+                          {status === 'All' ? 'All Units' : status === 'Occupied' ? 'Occupied' : 'Vacant'}
                         </button>
                       ))}
                     </div>
@@ -845,10 +845,10 @@ export const AdminView = ({
                                 )}
                               </td>
                               <td style={{ padding: '10px 14px' }}>
-                                {u.status === 'Occupied' ? (
+                                {!u.published ? (
                                   <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Delisted from public</span>
                                 ) : (
-                                  <span style={{ color: 'var(--status-green)', fontWeight: 600 }}>Only room specs & rent</span>
+                                  <span style={{ color: 'var(--status-green)', fontWeight: 600 }}>{u.status === 'Occupied' ? 'Occupied status & owner estimate only' : 'Vacancy specs & rent only'}</span>
                                 )}
                               </td>
                               <td style={{ padding: '10px 14px', textAlign: 'right', color: 'var(--status-green)', fontWeight: 700 }}>

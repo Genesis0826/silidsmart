@@ -80,7 +80,7 @@ Airbnb connects transient travelers with short-term hosts through a high-frequen
   2. Renter filters by Area, Type, and Budget.
   3. Renter inspects listing: rules (e.g. 10 PM curfew, female-only), amenities (WiFi, submeter), owner ID review badge, and last update date.
   4. Renter submits an inquiry/viewing request or contacts the owner directly.
-  5. The platform takes ₱0 commission on rent.
+  5. Renters pay no inquiry fee. Monthly rent has no commission; eligible owner-reported completed SilidSmart short stays calculate a separate 5% owner-paid fee, without collection.
 
 ### C. Occupancy Sync (The Core Value Proposition)
 ```mermaid
@@ -97,7 +97,8 @@ sequenceDiagram
     Owner->>App: Updates Unit status to "Occupied" (Assigns Tenant Name & Rent Due)
     App->>App: Persists private tenant and rent record
     App->>Public: Emits VacancyUpdate event (Occupied)
-    Public->>Public: Immediately removes Unit from Search Results
+    Public->>Public: Excludes Unit from Available now after reload
+    Note over App, Public: Publication is preserved; All published units can show Occupied and an owner estimate
     Tenant->>Public: Refreshes search -> Unit is no longer listed as available
 ```
 

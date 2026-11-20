@@ -38,6 +38,37 @@ export class NotFoundError extends Error {
   }
 }
 
+const isIsoDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+  && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+
+function publicAvailabilityFilter(availability) {
+  if (!['available', 'all'].includes(availability)) {
+    throw new ValidationError('INVALID_AVAILABILITY_FILTER', 'Availability must be available or all.');
+  }
+  return availability === 'all' ? 'u.published = 1' : "u.published = 1 AND u.status = 'Vacant'";
+}
+
+function validateUtility(input) {
+  const { unitId, utilityType, billingMonth, amountPhp, dueDate, paymentStatus, paymentDate, reference = '' } = input;
+  if (typeof unitId !== 'string' || !unitId || !['Electricity', 'Water'].includes(utilityType)
+      || typeof billingMonth !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(billingMonth)) {
+    throw new ValidationError('INVALID_UTILITY_BILL', 'Choose a unit, Electricity or Water, and a valid billing month.');
+  }
+  const centavos = Math.round(amountPhp * 100);
+  if (typeof amountPhp !== 'number' || !Number.isFinite(amountPhp) || amountPhp <= 0 || amountPhp > 10_000_000
+      || Math.abs(centavos - amountPhp * 100) > 0.000001) {
+    throw new ValidationError('INVALID_UTILITY_AMOUNT', 'Bill amount must be positive, at most ₱10,000,000, with up to two decimal places.');
+  }
+  if (!isIsoDate(dueDate) || !['Paid', 'Due', 'Overdue'].includes(paymentStatus)
+      || (paymentStatus === 'Paid' ? !isIsoDate(paymentDate) : paymentDate != null && paymentDate !== '')) {
+    throw new ValidationError('INVALID_UTILITY_PAYMENT', 'Use a valid due date and manual status; Paid requires a payment date, and unpaid bills must have no payment date.');
+  }
+  if (typeof reference !== 'string' || reference.trim().length > 120) {
+    throw new ValidationError('INVALID_UTILITY_REFERENCE', 'Payment reference must be at most 120 characters.');
+  }
+  return { ...input, centavos, reference: paymentStatus === 'Paid' ? reference.trim() : '', paymentDate: paymentStatus === 'Paid' ? paymentDate : null };
+}
+
 export function calculateBmcSubscriptionTier(unitCount) {
   const count = Number(unitCount) || 0;
   const disclaimer = 'The monthly fee depends on the total rooms or apartment units managed';
@@ -136,6 +167,16 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     } catch (error) { db.exec('ROLLBACK;'); throw error; }
   }
 
+  const directoryMigration = '004_directory_and_utilities.sql';
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version = ?').get(directoryMigration)) {
+    db.exec('BEGIN;');
+    try {
+      db.exec(fs.readFileSync(path.join(__dirname, '..', 'migrations', directoryMigration), 'utf8'));
+      insertMigration.run(directoryMigration, new Date().toISOString());
+      db.exec('COMMIT;');
+    } catch (error) { db.exec('ROLLBACK;'); throw error; }
+  }
+
   function populateSeedData() {
     db.exec('BEGIN TRANSACTION;');
     try {
@@ -144,6 +185,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         DELETE FROM listing_reports;
         DELETE FROM inquiries;
         DELETE FROM short_stay_records;
+        DELETE FROM utility_records;
         DELETE FROM rent_records;
         DELETE FROM tenants;
         DELETE FROM units;
@@ -351,6 +393,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     published: Boolean(row.published),
     lastUpdated: row.last_updated,
     description: row.description,
+    expectedAvailableFrom: row.expected_available_from ?? null,
   });
 
   const mapTenant = (row) => ({
@@ -387,6 +430,13 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     recordedAt: row.recorded_at,
   });
 
+  const mapUtility = (row) => ({
+    id: row.id, unitId: row.unit_id, utilityType: row.utility_type,
+    billingMonth: row.billing_month, amountPhp: row.amount_centavos / 100,
+    dueDate: row.due_date, paymentStatus: row.payment_status,
+    paymentDate: row.payment_date, reference: row.reference, recordedAt: row.recorded_at,
+  });
+
   const mapInquiry = (row) => ({
     id: row.id,
     unitId: row.unit_id,
@@ -416,10 +466,11 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     auth,
     /**
      * Public B2C Endpoint Contract:
-     * Strictly returns ONLY vacant & published units joined with property & owner trust metadata.
+     * Default scope returns published vacancies; all scope includes published occupied units.
      * Zero tenant PII or rent ledger rows are ever queried or returned.
      */
-    getPublicListings() {
+    getPublicListings(availability = 'available') {
+      const visibility = publicAvailabilityFilter(availability);
       const rows = db
         .prepare(`
           SELECT
@@ -432,6 +483,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
             u.published,
             u.last_updated,
             u.description,
+            u.expected_available_from,
             p.name AS property_name,
             p.type AS property_type,
             p.area AS property_area,
@@ -446,7 +498,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
           FROM units u
           JOIN properties p ON p.id = u.property_id
           JOIN owners o ON o.id = p.owner_id
-          WHERE u.published = 1 AND u.status = 'Vacant'
+          WHERE ${visibility}
           ORDER BY u.id ASC
         `)
         .all();
@@ -460,6 +512,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
           monthlyRent: r.monthly_rent,
           deposit: r.deposit,
           status: r.status,
+          expectedAvailableFrom: r.expected_available_from ?? null,
           lastUpdated: r.last_updated,
           freshnessNotice: `Availability last updated by owner: ${r.last_updated}`,
           description: r.description,
@@ -486,14 +539,15 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       };
     },
 
-    getPublicWorkspace(renterId = null) {
+    getPublicWorkspace(renterId = null, availability = 'available') {
+      const visibility = publicAvailabilityFilter(availability);
       const owners = db
         .prepare('SELECT id, display_name, id_review_status, id_submission_date FROM owners ORDER BY id ASC')
         .all()
         .map(mapPublicOwner);
-      const properties = db.prepare("SELECT p.* FROM properties p WHERE EXISTS (SELECT 1 FROM units u WHERE u.property_id = p.id AND u.published = 1 AND u.status = 'Vacant') ORDER BY p.id ASC").all().map(mapProperty);
+      const properties = db.prepare(`SELECT p.* FROM properties p WHERE EXISTS (SELECT 1 FROM units u WHERE u.property_id = p.id AND ${visibility}) ORDER BY p.id ASC`).all().map(mapProperty);
       const units = db
-        .prepare("SELECT * FROM units WHERE published = 1 AND status = 'Vacant' ORDER BY id ASC")
+        .prepare(`SELECT u.* FROM units u WHERE ${visibility} ORDER BY u.id ASC`)
         .all()
         .map(mapUnit);
       const inquiries = renterId ? db.prepare('SELECT * FROM inquiries WHERE renter_id = ? ORDER BY id DESC').all(renterId).map(mapInquiry) : [];
@@ -579,6 +633,9 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
           JOIN units u ON u.id = s.unit_id JOIN properties p ON p.id = u.property_id
           WHERE p.owner_id = ? ORDER BY s.recorded_at DESC, s.id DESC`).all(ownerId).map(mapShortStay),
         subscription: calculateBmcSubscriptionTier(units.length),
+        utilityRecords: db.prepare(`SELECT r.* FROM utility_records r
+          JOIN units u ON u.id = r.unit_id JOIN properties p ON p.id = u.property_id
+          WHERE p.owner_id = ? ORDER BY r.billing_month DESC, r.recorded_at DESC`).all(ownerId).map(mapUtility),
       };
     },
 
@@ -621,9 +678,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     },
 
     recordShortStay({ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source }) {
-      const validDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
-        && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
-      if (!validDate(checkInDate) || !validDate(checkOutDate) || checkOutDate <= checkInDate) {
+      if (!isIsoDate(checkInDate) || !isIsoDate(checkOutDate) || checkOutDate <= checkInDate) {
         throw new ValidationError('INVALID_STAY_DATES', 'Use valid dates with checkout after check-in.');
       }
       if (typeof guestName !== 'string' || !guestName.trim() || guestName.trim().length > 120) {
@@ -657,6 +712,41 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       return { ok: true };
     },
 
+    updateUnitDirectory({ unitId, published, expectedAvailableFrom }) {
+      if (typeof published !== 'boolean' || (expectedAvailableFrom != null && expectedAvailableFrom !== '' && !isIsoDate(expectedAvailableFrom))) {
+        throw new ValidationError('INVALID_DIRECTORY_SETTINGS', 'Choose publication and an optional valid expected availability date.');
+      }
+      const unit = db.prepare('SELECT status FROM units WHERE id = ?').get(unitId);
+      if (!unit) throw new NotFoundError('UNIT_NOT_FOUND', 'Unit not found.');
+      const result = db.prepare('UPDATE units SET published = ?, expected_available_from = ?, last_updated = ? WHERE id = ?')
+        .run(Number(published), unit.status === 'Occupied' ? expectedAvailableFrom || null : null, todayIso(), unitId);
+      if (!result.changes) throw new NotFoundError('UNIT_NOT_FOUND', 'Unit not found.');
+      return { ok: true };
+    },
+
+    addUtilityRecord(input) {
+      const bill = validateUtility(input);
+      if (!db.prepare('SELECT id FROM units WHERE id = ?').get(bill.unitId)) throw new NotFoundError('UNIT_NOT_FOUND', 'Unit not found.');
+      if (db.prepare('SELECT id FROM utility_records WHERE unit_id = ? AND utility_type = ? AND billing_month = ?')
+          .get(bill.unitId, bill.utilityType, bill.billingMonth)) {
+        throw new ValidationError('DUPLICATE_UTILITY_BILL', 'A bill already exists for this unit, utility and month. Edit the existing bill.');
+      }
+      db.prepare(`INSERT INTO utility_records
+        (id, unit_id, utility_type, billing_month, amount_centavos, due_date, payment_status, payment_date, reference, recorded_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(randomUUID(), bill.unitId, bill.utilityType, bill.billingMonth,
+          bill.centavos, bill.dueDate, bill.paymentStatus, bill.paymentDate, bill.reference, new Date().toISOString());
+      return { ok: true };
+    },
+
+    updateUtilityRecord(recordId, input) {
+      const row = db.prepare('SELECT * FROM utility_records WHERE id = ?').get(recordId);
+      if (!row) throw new NotFoundError('UTILITY_NOT_FOUND', 'Utility bill not found.');
+      const bill = validateUtility({ ...mapUtility(row), ...input, unitId: row.unit_id, utilityType: row.utility_type, billingMonth: row.billing_month });
+      db.prepare(`UPDATE utility_records SET amount_centavos = ?, due_date = ?, payment_status = ?, payment_date = ?, reference = ? WHERE id = ?`)
+        .run(bill.centavos, bill.dueDate, bill.paymentStatus, bill.paymentDate, bill.reference, recordId);
+      return { ok: true };
+    },
+
     toggleUnitOccupancy({ unitId, newStatus, tenantName, tenantContact, moveInDate }) {
       if (!unitId || !['Vacant', 'Occupied'].includes(newStatus)) {
         throw new ValidationError('INVALID_OCCUPANCY_STATUS', 'newStatus must be "Vacant" or "Occupied".');
@@ -668,15 +758,16 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       }
 
       const propRow = db.prepare('SELECT * FROM properties WHERE id = ?').get(unitRow.property_id);
-      const published = newStatus === 'Vacant' ? 1 : 0;
+      const published = unitRow.published;
       const lastUpdated = todayIso();
 
       db.exec('BEGIN TRANSACTION;');
       try {
-        db.prepare('UPDATE units SET status = ?, published = ?, last_updated = ? WHERE id = ?').run(
+        db.prepare("UPDATE units SET status = ?, published = ?, last_updated = ?, expected_available_from = CASE WHEN ? = 'Vacant' THEN NULL ELSE expected_available_from END WHERE id = ?").run(
           newStatus,
           published,
           lastUpdated,
+          newStatus,
           unitId
         );
 

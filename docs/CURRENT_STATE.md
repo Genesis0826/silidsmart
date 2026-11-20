@@ -3,6 +3,13 @@
 ## Overview
 Tracks dated milestone status, prototype readiness, and verified acceptance gates for SilidSmart.
 
+## Current directory and utility scope — November 20, 2026
+
+- Added owner Directory settings for publication and optional expected availability. Available now excludes occupied units; All published units retains published occupied specifications/status and owner estimates. Hidden units stay hidden. Occupancy changes preserve publication and clear the estimate when marked Vacant; dates never automatically change status. Occupied-unit viewing requests remain blocked.
+- Added a private Utility Tracker for Electricity/Water bills by unit/month, centavo amounts, due dates, manual Paid/Due/Overdue status, conditional payment dates/references, bill corrections and month/status filters. Duplicate bill identity is prevented. Utilities never enter the 5% accommodation-rent commission base, and no payment/provider verification or collection is introduced.
+- Migration 004 preserves existing records/publication. Backend integration checks pass 21/21, TypeScript/Vite/Oxlint pass, and an upgrade/reopen check on an isolated legacy database copy preserves prior records and short-stay fees. Browser checks passed directory settings, scope switching, blocked occupied requests, utility add/duplicate/edit/Paid/filter/reload, mobile width, sign-out privacy and hiding an occupied unit. Initial browser-selector mismatches were corrected; no real demo records were changed by tests.
+- Canonical API, privacy, database, architecture and pitch-demo guidance reflect this behavior. Existing external Word/Canva materials were not edited in this system-only request; use Available now for the established vacancy-exclusion demonstration.
+
 ## Current pricing and short-stay scope — November 20, 2026
 
 - Owner plans now calculate 1–4 units Free, 5–10 PHP 99/month, 11–25 PHP 199, 26–50 PHP 349, custom above 50. Zero units has no monthly charge. Registration, owner pricing, and admin subscription estimates use these boundaries; core tools are shared across tiers.

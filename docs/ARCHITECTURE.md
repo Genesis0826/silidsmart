@@ -8,9 +8,9 @@ Defines the system boundaries, Airbnb/Booking.com-to-SilidSmart B2B2C architectu
 | Airbnb / Booking.com Component | SilidSmart B2B2C Component | Architectural Role |
 |---|---|---|
 | `UI / APP for Hotel Manager` + `Hotel Service` + `Hotels DB` | **Owner SaaS Operations Portal (`OwnerView`)** + `owners`, `properties`, `units`, `tenants`, `rent_records` tables | Private B2B landlord workspace for room inventory, 1-click vacancy sync, private tenant roster, rent ledger, and QR poster/Facebook group outreach |
-| `Kafka Event Stream` + `Search Consumer` | **Real-Time Vacancy Sync Transaction (`toggleUnitOccupancy`)** + `system_events` telemetry | Atomic SQLite transaction updating unit status, public visibility (`published`), freshness timestamp (`last_updated`), and private tenant/rent rows |
+| `Kafka Event Stream` + `Search Consumer` | **Vacancy Sync Transaction (`toggleUnitOccupancy`)** + `system_events` telemetry | Atomically updates status, freshness and private tenant/rent rows while preserving owner publication. Available now excludes occupied units; All published units retains published occupied specifications and owner estimates. |
 | `UI / APP for Customers` + `Search Service` + `ElasticSearch` | **Public Renter Directory (`CustomerView`)** + `GET /api/public/workspace` & `GET /api/public/listings` | Faceted search by district, property type, budget, and verified owner ID, plus side-by-side unit comparison (`up to 3 units`) with zero tenant PII exposure |
-| `Booking Service` + `UI / APP to View Bookings` | **Viewing Inquiry & Reservation Tracker** (`inquiries` table) | Renter viewing schedule requests (`Pending` -> `Approved` / `Declined`) and 1-click landlord move-in conversion (`Move In & Mark Occupied`) |
+| `Booking Service` + `UI / APP to View Bookings` | **Viewing Inquiry Tracker** (`inquiries` table) | Requests (`Pending` -> `Approved` / `Declined`) and owner move-in conversion. Viewing approval is not a reservation; requests require a vacant published unit. |
 | `Payment Service` | **Subscription calculator and private completed-stay ledger** | Free for 1–4 units; ₱99 for 5–10, ₱199 for 11–25, ₱349 for 26–50, custom above 50. A separate 5% owner-paid fee is calculated on completed owner-reported SilidSmart short stays. No payment processing or collection. |
 | `Trust & Governance Layer` | **Admin Governance Console (`AdminView`)** | Manual government ID verification (`ID reviewed`), renter discrepancy report moderation, and B2B/B2C privacy guardrail audit |
 
@@ -18,8 +18,8 @@ Defines the system boundaries, Airbnb/Booking.com-to-SilidSmart B2B2C architectu
 
 - **Frontend (`frontend/`)**: React `19.3` + TypeScript + Vite `8.3` (`http://localhost:5173`), proxying `/api/*` to `http://localhost:4000`. Styled with the Proptech Blue & Editorial Stone design system (`#002B66` brand navy, `#0057D9` action blue, `#F5A623` search accent, `#F4F5F7` canvas, `Newsreader` + `Plus Jakarta Sans` + `JetBrains Mono`, unified hairline `.ledger-kpi-strip` KPI bars).
 - **Strict Role-Scoped Fetching (`frontend/src/App.tsx`)**:
-  - **`renter` role**: Fetches `GET /api/public/workspace` and explicitly clears private arrays (`tenants`, `rentRecords`, `listingReports`, `systemEvents`). Never reads or holds occupant PII in browser state.
-  - **`owner` role**: Fetches `GET /api/owner/:ownerId/workspace` so one landlord receives only their own `properties`, `units`, `tenants`, `rentRecords`, `inquiries`, and `subscription` summary.
+  - **`renter` role**: Fetches `GET /api/public/workspace?availability=all` for public unit fields and defaults its UI to Available now. Clears tenants, rent, short-stay, utility, moderation and event arrays. Never holds occupant or private financial records in browser state.
+  - **`owner` role**: Fetches `GET /api/owner/:ownerId/workspace` so one landlord receives only their own properties, units, tenants, rentRecords, inquiries, shortStays, utilityRecords and subscription summary.
   - **`admin` role**: Fetches `GET /api/bootstrap` for governance queues, privacy verification, and system event logs.
 - **No Silent Mock Fallback Contract**:
   - Frontend domain arrays start empty (`[]`).
@@ -27,3 +27,9 @@ Defines the system boundaries, Airbnb/Booking.com-to-SilidSmart B2B2C architectu
   - Failed mutations surface server `error.message` values in a dismissible `.api-error-banner` and keep open modals intact until a `2xx` confirmation arrives.
 - **Backend API (`backend/`)**: Zero-dependency Node.js HTTP REST gateway (`src/server.mjs`) and domain service layer (`src/service.mjs`) on port `4000`.
 - **Persistence (`backend/data/silidsmart.sqlite`)**: Built-in `node:sqlite` (`DatabaseSync`) relational database initialized via `migrations/001_initial_b2b2c_schema.sql`.
+
+## Directory scopes and utility tracking — November 20, 2026
+
+The public API defaults to `availability=available`; `all` permits published occupied specifications/status and owner-supplied expected availability only. The renter UI loads public `all` data and defaults its visible results/maps to Available now. Publication settings are owner-scoped and independent of occupancy; no estimate automatically changes status. Viewing inquiries still require a vacant published unit at submission.
+
+`UtilityTracker` is a private owner component backed by `utility_records`, separate from monthly rent and short-stay ledgers. It records bills and manual payment fields, with owner-scoped create/correction routes. These records are absent from public/admin bootstrap payloads and cleared from client memory when leaving the owner workspace. No provider, payment processor or new dependency is introduced.

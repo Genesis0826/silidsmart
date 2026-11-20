@@ -22,7 +22,7 @@ Defines the SilidSmart B2B2C REST API endpoints (`silidsmart/backend/src/server.
 ## 1. Public B2C Endpoints (Renter Directory & Inquiries)
 
 ### `GET /api/public/listings`
-Returns only published and vacant units (`published = 1 AND status = 'Vacant'`) joined with property metadata and owner identity verification status.
+Default `availability=available` returns published vacancies. Optional `?availability=all` also returns published occupied units, with `status` and optional `expectedAvailableFrom`. Hidden units are excluded from both scopes. Unknown availability values return `400 INVALID_AVAILABILITY_FILTER`.
 - **Privacy Guardrail**: Never queries or returns `tenants` or `rent_records`.
 - **Mandatory Disclaimers Included**:
   - `prototypeNotice`: `"Concept prototype - sample properties only"`
@@ -31,8 +31,8 @@ Returns only published and vacant units (`published = 1 AND status = 'Vacant'`) 
   - `listings[].owner.safetyDisclaimer`: `"This does not certify property safety"`
 
 ### `GET /api/public/workspace`
-Returns the role-scoped public Renter workspace state from SQLite (`owners` public directory fields only without `contactMethod` or `idDocumentName`, `properties`, `Vacant` & `published` `units`, and account-scoped `inquiries`; guests receive an empty inquiry list).
-- **Privacy Guardrail**: Never queries or returns `tenants`, `rentRecords`, `listingReports`, `systemEvents`, or `Occupied` units.
+Returns public owner fields, matching properties/units, and account-scoped inquiries (empty for guests). Uses the same `availability=available|all` scopes as public listings. The frontend loads `all` and defaults its visible filters to Available now.
+- **Privacy Guardrail**: Neither scope queries or returns tenant, rent, utility or short-stay ledgers, private owner fields, or contract data. The optional expected date is explicitly supplied for publication by the owner.
 
 ### `POST /api/public/inquiries`
 Submits a zero-commission viewing inquiry to the property owner.
@@ -49,7 +49,7 @@ Flags an outdated or inaccurate public listing for administrator moderation.
 ## 2. Private B2B Landlord Endpoints (Owner Operations)
 
 ### `GET /api/owner/:ownerId/workspace`
-Returns the isolated workspace for `ownerId` (`owner`, `owners` containing only the signed-in owner's record, owner's `properties`, `units`, `tenants`, `rentRecords`, `inquiries`, and `subscription`). Requires an owner session; requests for a different owner ID return `403 PORTFOLIO_FORBIDDEN`.
+Returns the isolated workspace for `ownerId`: owner/profile, properties, units, tenants, rentRecords, inquiries, subscription, private shortStays and utilityRecords. Requires an owner session; a different owner ID returns `403 PORTFOLIO_FORBIDDEN`.
 
 ### `GET /api/owner/:ownerId/subscription`
 Calculates the owner's monthly BMC subscription tier from their total managed rooms/units (`1 room or 1 apartment = 1 count`).
@@ -62,7 +62,7 @@ Calculates the owner's monthly BMC subscription tier from their total managed ro
 - **Mandatory Disclaimer**: `"The monthly fee depends on the total rooms or apartment units managed"`
 
 ### `PATCH /api/owner/units/:unitId/occupancy`
-Atomically toggles unit occupancy (`Vacant` or `Occupied`), updates `published` state (`1` when Vacant, `0` when Occupied), registers incoming private tenant & rent ledger rows when marking `Occupied`, and emits a `SYNC` telemetry event.
+Atomically toggles unit occupancy while preserving the existing publication choice, registers incoming private tenant/rent rows when details are supplied, and emits a `SYNC` event. Vacant clears the expected availability estimate. Occupied units remain excluded from Available now but can remain in All if published.
 - **Body**: `{ newStatus: 'Vacant' | 'Occupied', tenantName?, tenantContact?, moveInDate? }`
 
 ### `POST /api/owner/units`
@@ -71,6 +71,15 @@ Adds a new room or apartment unit to an owner's property and recalculates their 
 
 ### `PATCH /api/owner/rent-records/:recordId`
 Updates a manual rent payment ledger entry (`Paid`, `Due`, `Overdue`).
+
+### `PATCH /api/owner/units/:unitId/directory`
+Requires an owner session and portfolio membership. Body: `{ published: boolean, expectedAvailableFrom?: 'YYYY-MM-DD' | null }`. Replaces publication and the optional owner estimate (omitted/empty clears it). The date must be a real calendar date; a vacant unit stores no estimate. Does not alter occupancy or disclose private tenant/lease information. Returns the owner workspace.
+
+### `POST /api/owner/utility-records`
+Requires an owner session and a unit in that portfolio. Body: `{ unitId, utilityType: 'Electricity' | 'Water', billingMonth: 'YYYY-MM', amountPhp, dueDate: 'YYYY-MM-DD', paymentStatus: 'Paid' | 'Due' | 'Overdue', paymentDate?: 'YYYY-MM-DD' | null, reference?: string }`. Amount must be positive, at most PHP 10,000,000, with two decimal places at most. Paid requires a real payment date; unpaid records must omit/clear the payment date. References are limited to 120 characters and cleared for unpaid bills. Duplicate unit/type/month returns `400 DUPLICATE_UTILITY_BILL`; validation errors return 400. Returns `201` with the owner workspace and private `utilityRecords`.
+
+### `PATCH /api/owner/utility-records/:recordId`
+Requires the record's owner. Supports partial corrections to `amountPhp`, `dueDate`, `paymentStatus`, `paymentDate`, `reference`, with the same validation. Bill identity (`unitId`, `utilityType`, `billingMonth`) stays fixed and supplied replacements are ignored. When changing Paid to Due/Overdue, explicitly send `paymentDate: null`; the reference is cleared. Returns the owner workspace. Neither utility route processes payments, verifies receipts or changes short-stay commission. Other-portfolio requests fail 403; missing session 401; wrong role 403.
 
 ### `POST /api/owner/short-stays`
 Records an owner-declared completed short stay. Requires the owner role and a unit in that owner's portfolio. Body: `{ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source: 'SilidSmart' | 'Other' }`. Dates must be real ISO dates with checkout after check-in; rent must be positive, at most PHP 10,000,000, with at most two decimal places. The server fixes the rate at 5% and ignores supplied fee/rate/status fields. Source is an owner report, not independently verified attribution.

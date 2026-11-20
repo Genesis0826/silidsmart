@@ -98,13 +98,13 @@ export function createAppServer(service = createSilidSmartService()) {
 
       // Public B2C Endpoint (Zero Tenant PII Leakage)
       if (method === 'GET' && pathname === '/api/public/listings') {
-        sendJson(res, 200, service.getPublicListings());
+        sendJson(res, 200, service.getPublicListings(parsedUrl.searchParams.get('availability') || 'available'));
         return;
       }
 
       // Public B2C Workspace State (Zero Tenant PII, Zero Ledger Data, Vacant Units Only)
       if (method === 'GET' && pathname === '/api/public/workspace') {
-        sendJson(res, 200, service.getPublicWorkspace(user?.role === 'renter' ? user.id : null));
+        sendJson(res, 200, service.getPublicWorkspace(user?.role === 'renter' ? user.id : null, parsedUrl.searchParams.get('availability') || 'available'));
         return;
       }
 
@@ -150,6 +150,31 @@ export function createAppServer(service = createSilidSmartService()) {
       }
 
       // 2. Add New Room / Unit
+      const directoryMatch = pathname.match(/^\/api\/owner\/units\/([^/]+)\/directory$/);
+      if (method === 'PATCH' && directoryMatch) {
+        const unitId = decodeURIComponent(directoryMatch[1]);
+        assertOwned('units', unitId);
+        const body = await readJsonBody(req);
+        service.updateUnitDirectory({ unitId, published: body.published, expectedAvailableFrom: body.expectedAvailableFrom });
+        sendJson(res, 200, ownerWorkspace());
+        return;
+      }
+      if (method === 'POST' && pathname === '/api/owner/utility-records') {
+        const body = await readJsonBody(req);
+        assertOwned('units', body.unitId);
+        service.addUtilityRecord(body);
+        sendJson(res, 201, ownerWorkspace());
+        return;
+      }
+      const utilityMatch = pathname.match(/^\/api\/owner\/utility-records\/([^/]+)$/);
+      if (method === 'PATCH' && utilityMatch) {
+        const recordId = decodeURIComponent(utilityMatch[1]);
+        assertOwned('utilityRecords', recordId);
+        service.updateUtilityRecord(recordId, await readJsonBody(req));
+        sendJson(res, 200, ownerWorkspace());
+        return;
+      }
+
       if (method === 'POST' && pathname === '/api/owner/units') {
         const body = await readJsonBody(req);
         assertOwned('properties', body.propertyId);

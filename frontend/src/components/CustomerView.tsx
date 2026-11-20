@@ -14,6 +14,15 @@ const FALLBACK_LISTING_IMG =
     '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500"><rect width="800" height="500" fill="#E9EFF5"/><rect x="48" y="48" width="704" height="404" rx="8" fill="#F8FAFC" stroke="#C5D2E0" stroke-width="2"/><text x="400" y="242" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="600" fill="#00224F">SilidSmart Sample Property</text><text x="400" y="276" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#5B6978">Photo preview unavailable in offline environment</text></svg>'
   );
 
+function OccupiedNotice({ unit }: { unit: Unit }) {
+  if (unit.status !== 'Occupied') return null;
+  return <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '8px 0' }}>
+    <strong>Occupied — unavailable now.</strong><br />
+    {unit.expectedAvailableFrom ? <>Expected available from <time dateTime={unit.expectedAvailableFrom} style={{ whiteSpace: 'nowrap' }}>{unit.expectedAvailableFrom}</time> (owner estimate).</> : 'Expected availability has not been provided.'}
+    {' '}Availability must be confirmed by the owner.
+  </p>;
+}
+
 interface CustomerViewProps {
   properties: Property[];
   units: Unit[];
@@ -45,6 +54,7 @@ export const CustomerView = ({
   const [mapScope, setMapScope] = useState<MapScope>('ust');
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [sortBy, setSortBy] = useState<'recommended' | 'priceAsc' | 'priceDesc'>('recommended');
+  const [availabilityMode, setAvailabilityMode] = useState<'available' | 'all'>('available');
 
   // Search & Faceted Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,10 +125,10 @@ export const CustomerView = ({
     return ['All', ...areas];
   }, [properties, mapScope]);
 
-  // All vacant & published units joined with property & owner
-  const allVacantJoined = useMemo(() => {
+  // Only public unit fields are loaded; tenant/ledger records never enter this view.
+  const allPublishedJoined = useMemo(() => {
     return units
-      .filter((unit) => unit.published && unit.status === 'Vacant')
+      .filter((unit) => unit.published)
       .map((unit) => {
         const property = properties.find((p) => p.id === unit.propertyId);
         const owner = owners.find((o) => o.id === property?.ownerId);
@@ -129,7 +139,8 @@ export const CustomerView = ({
 
   // Filtered & sorted listings
   const availableListings = useMemo(() => {
-    const filtered = allVacantJoined.filter((item) => {
+    const filtered = allPublishedJoined.filter((item) => {
+      if (availabilityMode === 'available' && item.unit.status !== 'Vacant') return false;
       if (item.property.mapScope !== mapScope) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -162,7 +173,7 @@ export const CustomerView = ({
       return [...filtered].sort((a, b) => b.unit.monthlyRent - a.unit.monthlyRent);
     }
     return filtered;
-  }, [allVacantJoined, mapScope, searchQuery, selectedArea, selectedType, maxPrice, verifiedOnly, selectedAmenityFilter, sortBy]);
+  }, [allPublishedJoined, mapScope, searchQuery, selectedArea, selectedType, maxPrice, verifiedOnly, selectedAmenityFilter, sortBy, availabilityMode]);
 
   const resetAllFilters = () => {
     setSearchQuery('');
@@ -171,11 +182,12 @@ export const CustomerView = ({
     setMaxPrice(30000);
     setVerifiedOnly(false);
     setSelectedAmenityFilter('All');
+    setAvailabilityMode('available');
   };
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedListing) return;
+    if (!selectedListing || selectedListing.unit.status !== 'Vacant') return;
     if (!inquiryName.trim() || !inquiryContact.trim()) return;
 
     const targetName = selectedListing.property.name;
@@ -266,7 +278,7 @@ export const CustomerView = ({
                   border: '1px solid rgba(255,255,255,0.25)',
                 }}
               >
-                Vacant Directory (<span className="mono-num">{availableListings.length}</span>)
+                Rental Directory (<span className="mono-num">{availableListings.length}</span>)
               </button>
 
               <button
@@ -524,8 +536,8 @@ export const CustomerView = ({
                   {(['All', 'Boarding house', 'Dorm', 'Apartment', 'Condo'] as const).map((type) => {
                     const count =
                       type === 'All'
-                        ? allVacantJoined.length
-                        : allVacantJoined.filter((i) => i.property.type === type).length;
+                        ? allPublishedJoined.filter(i => availabilityMode === 'all' || i.unit.status === 'Vacant').length
+                        : allPublishedJoined.filter(i => i.property.type === type && (availabilityMode === 'all' || i.unit.status === 'Vacant')).length;
                     return (
                       <label
                         key={type}
@@ -608,12 +620,19 @@ export const CustomerView = ({
               >
                 <div>
                   <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                    {selectedArea === 'All' ? (mapScope === 'ust' ? 'Around UST' : 'Quezon City') : selectedArea}: {availableListings.length} vacant{' '}
-                    {availableListings.length === 1 ? 'unit' : 'units'} available
+                    {selectedArea === 'All' ? (mapScope === 'ust' ? 'Around UST' : 'Quezon City') : selectedArea}: {availableListings.length}{' '}
+                    {availabilityMode === 'available' ? 'available' : 'published'} {availableListings.length === 1 ? 'unit' : 'units'}
                   </h2>
                   <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Showing published vacant rooms only • Occupied units are automatically delisted
+                    {availabilityMode === 'available' ? 'Published vacant units only. Choose All published units to view occupied listings.' : 'Published vacant and occupied units. Occupied units are unavailable now; dates are owner estimates.'}
                   </p>
+                  <div role="group" aria-label="Unit availability" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                    {([{ value: 'available', label: 'Available now' }, { value: 'all', label: 'All published units' }] as const).map(mode => (
+                      <button key={mode.value} type="button" aria-pressed={availabilityMode === mode.value}
+                        className={`btn btn-sm ${availabilityMode === mode.value ? 'btn-primary' : 'btn-outline'}`}
+                        onClick={() => setAvailabilityMode(mode.value)}>{mode.label}</button>
+                    ))}
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -761,8 +780,8 @@ export const CustomerView = ({
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                           <div style={{ position: 'absolute', top: '8px', left: '8px', display: 'flex', gap: '6px' }}>
-                            <span className="badge badge-vacant" style={{ fontWeight: 700 }}>
-                              Vacant Now
+                            <span className={`badge ${unit.status === 'Vacant' ? 'badge-vacant' : 'badge-occupied'}`} style={{ fontWeight: 700 }}>
+                              {unit.status === 'Vacant' ? 'Vacant Now' : 'Occupied'}
                             </span>
                           </div>
                           <div
@@ -900,6 +919,7 @@ export const CustomerView = ({
 
                           {/* Bottom Right: Price & CTA */}
                           <div style={{ width: '100%' }}>
+                            <OccupiedNotice unit={unit} />
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                               Stated monthly rate
                             </div>
@@ -916,7 +936,7 @@ export const CustomerView = ({
                                 className="btn btn-primary"
                                 style={{ width: '100%', padding: '9px 12px', fontSize: '0.84rem' }}
                               >
-                                <span>See availability</span>
+                                <span>{unit.status === 'Vacant' ? 'See availability' : 'View occupied unit'}</span>
                                 <ChevronRight size={15} />
                               </button>
                               <button
@@ -965,14 +985,15 @@ export const CustomerView = ({
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                           <div style={{ position: 'absolute', top: '8px', left: '8px', display: 'flex', gap: '6px' }}>
-                            <span className="badge badge-vacant" style={{ fontWeight: 700 }}>
-                              Vacant Now
+                            <span className={`badge ${unit.status === 'Vacant' ? 'badge-vacant' : 'badge-occupied'}`} style={{ fontWeight: 700 }}>
+                              {unit.status === 'Vacant' ? 'Vacant Now' : 'Occupied'}
                             </span>
                             <span className="badge badge-info">{property.type}</span>
                           </div>
                         </div>
 
                         <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, gap: '10px' }}>
+                          <OccupiedNotice unit={unit} />
                           <div>
                             <h3
                               className="editorial-heading"
@@ -1156,7 +1177,7 @@ export const CustomerView = ({
             <div className="modal-header">
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span className="badge badge-vacant">Vacant</span>
+                  <span className={`badge ${selectedListing.unit.status === 'Vacant' ? 'badge-vacant' : 'badge-occupied'}`}>{selectedListing.unit.status}</span>
                   <span
                     className="badge"
                     style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#FFFFFF', border: 'none' }}
@@ -1315,7 +1336,8 @@ export const CustomerView = ({
                 )}
               </div>
 
-              {/* Viewing Request Form */}
+              {/* Viewing requests remain limited to currently vacant, published units. */}
+              {selectedListing.unit.status === 'Vacant' ? (
               <form onSubmit={handleInquirySubmit} style={{ borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--brand-navy)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Send size={16} color="var(--action-blue)" /> Schedule a Viewing / Send Inquiry (₱0 Fee)
@@ -1447,6 +1469,13 @@ export const CustomerView = ({
                   </button>
                 </div>
               </form>
+              ) : (
+                <section aria-label="Occupied unit availability" style={{ borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+                  <OccupiedNotice unit={selectedListing.unit} />
+                  <p>Viewing requests are unavailable while this unit is occupied. An expected date does not reserve the unit.</p>
+                  <button type="button" className="btn btn-outline btn-sm" style={{ marginTop: '12px' }} onClick={() => setIsReportModalOpen(true)}>Flag inaccurate listing</button>
+                </section>
+              )}
             </div>
           </div>
         </div>
@@ -1542,7 +1571,7 @@ export const CustomerView = ({
 
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
             {compareUnitIds.map((id) => {
-              const item = allVacantJoined.find((x) => x.unit.id === id);
+              const item = allPublishedJoined.find((x) => x.unit.id === id);
               if (!item) return null;
               return (
                 <div
@@ -1632,7 +1661,7 @@ export const CustomerView = ({
                       Comparison Dimension
                     </th>
                     {compareUnitIds.map((id) => {
-                      const item = allVacantJoined.find((x) => x.unit.id === id);
+                      const item = allPublishedJoined.find((x) => x.unit.id === id);
                       if (!item) return null;
                       return (
                         <th key={id} style={{ padding: '12px', verticalAlign: 'top', minWidth: '220px' }}>
@@ -1666,7 +1695,7 @@ export const CustomerView = ({
                   <tr style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: 'var(--action-blue-light)' }}>
                     <td style={{ padding: '12px', fontWeight: 700, color: 'var(--brand-navy)' }}>Stated Monthly Rent</td>
                     {compareUnitIds.map((id) => {
-                      const item = allVacantJoined.find((x) => x.unit.id === id);
+                      const item = allPublishedJoined.find((x) => x.unit.id === id);
                       if (!item) return null;
                       return (
                         <td key={id} style={{ padding: '12px' }}>
@@ -1688,7 +1717,7 @@ export const CustomerView = ({
                       Owner Identity Check
                     </td>
                     {compareUnitIds.map((id) => {
-                      const item = allVacantJoined.find((x) => x.unit.id === id);
+                      const item = allPublishedJoined.find((x) => x.unit.id === id);
                       if (!item) return null;
                       return (
                         <td key={id} style={{ padding: '12px' }}>
@@ -1716,7 +1745,7 @@ export const CustomerView = ({
                   <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Location & District</td>
                     {compareUnitIds.map((id) => {
-                      const item = allVacantJoined.find((x) => x.unit.id === id);
+                      const item = allPublishedJoined.find((x) => x.unit.id === id);
                       if (!item) return null;
                       return (
                         <td key={id} style={{ padding: '12px' }}>
@@ -1731,7 +1760,7 @@ export const CustomerView = ({
                   <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Included Amenities</td>
                     {compareUnitIds.map((id) => {
-                      const item = allVacantJoined.find((x) => x.unit.id === id);
+                      const item = allPublishedJoined.find((x) => x.unit.id === id);
                       if (!item) return null;
                       return (
                         <td key={id} style={{ padding: '12px', verticalAlign: 'top' }}>
@@ -1751,7 +1780,7 @@ export const CustomerView = ({
                   <tr style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>House Rules</td>
                     {compareUnitIds.map((id) => {
-                      const item = allVacantJoined.find((x) => x.unit.id === id);
+                      const item = allPublishedJoined.find((x) => x.unit.id === id);
                       if (!item) return null;
                       return (
                         <td key={id} style={{ padding: '12px', verticalAlign: 'top' }}>
@@ -1769,7 +1798,7 @@ export const CustomerView = ({
                   <tr>
                     <td style={{ padding: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>Availability & Action</td>
                     {compareUnitIds.map((id) => {
-                      const item = allVacantJoined.find((x) => x.unit.id === id);
+                      const item = allPublishedJoined.find((x) => x.unit.id === id);
                       if (!item) return null;
                       return (
                         <td key={id} style={{ padding: '12px' }}>

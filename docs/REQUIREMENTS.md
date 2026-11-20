@@ -7,7 +7,7 @@ Defines the business requirements, Business Model Canvas (BMC) value proposition
 SilidSmart is a **B2B2C rental management and room discovery platform** where small rental property owners (boarding houses, dormitories, and small apartments) manage rent and vacancies in a private workspace while renters compare available rooms and apartments for free.
 
 ### 1. Value Propositions
-1. **Single-Entry Vacancy Sync**: Owners update occupancy once in their private operations table; public listings automatically display available rooms/units and stated monthly rent or hide occupied units immediately.
+1. **Single-Entry Vacancy Sync**: Owners update occupancy once in their private operations table. Available now results exclude occupied units; All published units can retain occupied listings with a clear unavailable label and an optional owner estimate. Publication is a separate owner choice.
 2. **Side-by-Side Renter Comparison**: Renters compare stated monthly rent (`₱`), house rules, included amenities, district location, and owner identity check status side-by-side (`up to 3 units`).
 3. **Zero Renter Commission**: Owner plans include basic tenant/rent records and public directory listings; renters browse and inquire **100% free (`₱0` fee)**.
 
@@ -30,6 +30,15 @@ SilidSmart is a **B2B2C rental management and room discovery platform** where sm
 - The ledger is not a booking engine. It does not reserve dates, prevent overlaps, set nightly listing prices, or change occupancy automatically. Owners update occupancy separately; viewing approval does not reserve a room.
 - **No payment processing**: the prototype does not collect, deduct, remit, or verify rent, subscriptions, or commissions. Calculated commission is owner-reported and is not collected revenue. Agreements and payments happen outside the system. A real collection/reconciliation process and controls for inaccurate owner reports remain future work.
 - Acceptance: 1–4 units returns a zero subscription; 5–10 returns PHP 99; existing higher boundaries remain. A free three-unit owner recording a PHP 1,500 SilidSmart stay receives a PHP 75 fee; cancelling sets it to zero. Owner isolation, guest/renter denial, and public privacy must hold.
+
+### Directory visibility and manual utilities — November 20, 2026
+
+- Public discovery defaults to **Available now**: only published vacant units. **All published units** also includes published occupied units, labelled **Occupied — unavailable now** on cards, map links and details. Hidden units stay hidden in both modes. Inquiry submission remains limited to published vacant units.
+- Owner **Directory settings** controls publication and an optional public `expectedAvailableFrom` date for occupied units. This is an owner estimate, separate from private tenant/contract information. No date automatically changes occupancy or guarantees vacancy. Marking Vacant clears the estimate and preserves the publication choice; occupancy changes never restore a hidden listing.
+- No migration automatically publishes a hidden unit or infers a date from tenant notes. Existing explicit publication flags are preserved.
+- The private **Utility Tracker** records Electricity/Water per unit and billing month, positive amount in PHP (centavo precision), due date and a manual Paid/Due/Overdue status. Paid requires a valid payment date and supports a reference up to 120 characters; unpaid records have no payment date/reference. Records are owner reports, not verified receipts. Utility amounts are excluded from the 5% accommodation-rent commission.
+- One bill per unit/type/month prevents accidental duplicates. Owners can correct amount, due date and payment fields; identity fields remain fixed. Filters cover month and status. Only the unit's owner may read/write these bills; renters, other owners and public payloads receive none. No utility-provider integration or payment processing is introduced.
+- Acceptance: publishing an occupied unit displays its status/date only in All, blocks viewing inquiries, and leaks no tenant or financial records. Hiding removes it from both modes. A past estimate leaves occupancy unchanged. An owner can add a bill, mark it Paid with a date/reference, correct it, reload it and filter it; duplicate/invalid or unauthorized writes fail without changing existing records.
 
 ### 3. Channels & Outreach
 - Searchable mobile web directory (`CustomerView`).

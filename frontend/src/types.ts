@@ -58,7 +58,24 @@ export interface Unit {
   published: boolean;
   lastUpdated: string;
   description: string;
+  expectedAvailableFrom?: string | null;
 }
+
+export interface UtilityRecord {
+  id: string;
+  unitId: string;
+  utilityType: 'Electricity' | 'Water';
+  billingMonth: string;
+  amountPhp: number;
+  dueDate: string;
+  paymentStatus: RentPaymentStatus;
+  paymentDate: string | null;
+  reference: string;
+  recordedAt: string;
+}
+
+export type UtilityInput = Omit<UtilityRecord, 'id' | 'recordedAt'>;
+export type DirectorySettings = { published: boolean; expectedAvailableFrom: string | null };
 
 export interface Tenant {
   id: string;

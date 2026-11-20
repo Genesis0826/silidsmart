@@ -430,4 +430,131 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     });
     assert.equal((await restored.json()).shortStays[0].commissionPhp, 75);
   });
+
+  it('19. Published occupied units appear only in all scope; estimates never publish or change occupancy', async () => {
+    await request('/api/system/reset', { method: 'POST' });
+    const owner = await (await request('/api/owner/owner-1/workspace')).json();
+    const occupied = owner.units.find(unit => unit.status === 'Occupied');
+    const tenant = owner.tenants.find(item => item.unitId === occupied.id);
+    const patch = (body) => request(`/api/owner/units/${occupied.id}/directory`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    await patch({ published: false, expectedAvailableFrom: null });
+    const changed = await patch({ published: true, expectedAvailableFrom: '2020-01-01' });
+    assert.equal(changed.status, 200);
+    const edited = (await changed.json()).units.find(unit => unit.id === occupied.id);
+    assert.equal(edited.status, 'Occupied', 'Even a past estimate does not mark vacancy');
+    for (const path of ['/api/public/workspace', '/api/public/listings']) {
+      const available = await (await request(path)).json();
+      assert.equal((available.units || available.listings).some(unit => (unit.id || unit.unitId) === occupied.id), false);
+      const all = await (await request(`${path}?availability=all`)).json();
+      const found = (all.units || all.listings).find(unit => (unit.id || unit.unitId) === occupied.id);
+      assert.equal(found.status, 'Occupied');
+      assert.equal(found.expectedAvailableFrom, '2020-01-01');
+      assert.equal(JSON.stringify(all).includes(tenant.name), false);
+      for (const key of ['tenants', 'rentRecords', 'shortStays', 'utilityRecords']) assert.equal(key in all, false);
+      assert.equal((await request(`${path}?availability=unknown`)).status, 400);
+    }
+    const inquiry = await request('/api/public/inquiries', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitId: occupied.id, propertyId: occupied.propertyId, renterName: 'Renter', renterContact: 'sample contact' }),
+    });
+    assert.equal(inquiry.status, 400);
+    assert.equal((await inquiry.json()).error.code, 'LISTING_UNAVAILABLE');
+    assert.equal((await patch({ published: true, expectedAvailableFrom: '2026-02-30' })).status, 400);
+    assert.equal((await patch({ published: 'true' })).status, 400);
+    await patch({ published: false, expectedAvailableFrom: '2027-01-01' });
+    const vacant = await request(`/api/owner/units/${occupied.id}/occupancy`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newStatus: 'Vacant' }),
+    });
+    const unit = (await vacant.json()).units.find(item => item.id === occupied.id);
+    assert.equal(unit.published, false, 'Occupancy does not override a hidden listing');
+    assert.equal(unit.expectedAvailableFrom, null);
+    const allHidden = await (await request('/api/public/workspace?availability=all')).json();
+    assert.equal(allHidden.units.some(item => item.id === occupied.id), false);
+    await patch({ published: true, expectedAvailableFrom: null });
+    const republished = await request(`/api/owner/units/${occupied.id}/occupancy`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newStatus: 'Occupied' }),
+    });
+    assert.equal((await republished.json()).units.find(item => item.id === occupied.id).published, true);
+  });
+
+  it('20. Utility bills support cents, duplicate prevention, corrections and manual payment fields without commission effects', async () => {
+    const initial = await (await request('/api/owner/owner-1/workspace')).json();
+    const stay = await request('/api/owner/short-stays', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitId: initial.units[0].id, guestName: 'Utility commission QA guest', checkInDate: '2026-11-01', checkOutDate: '2026-11-04', rentTotalPhp: 1500, source: 'SilidSmart' }) });
+    assert.equal(stay.status, 201);
+    const owner = await (await request('/api/owner/owner-1/workspace')).json();
+    assert.equal(owner.shortStays.find(row => row.guestName === 'Utility commission QA guest').commissionPhp, 75);
+    const input = { unitId: owner.units[0].id, utilityType: 'Electricity', billingMonth: '2026-11', amountPhp: 1234.56,
+      dueDate: '2026-11-30', paymentStatus: 'Due', paymentDate: null, reference: '' };
+    const post = (bill) => request('/api/owner/utility-records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bill) });
+    const create = await post(input);
+    assert.equal(create.status, 201);
+    const state = await create.json();
+    const bill = state.utilityRecords.find(row => row.unitId === input.unitId && row.utilityType === 'Electricity');
+    assert.equal(bill.amountPhp, 1234.56);
+    assert.equal(bill.paymentDate, null);
+    assert.deepEqual(state.rentRecords, owner.rentRecords);
+    assert.deepEqual(state.shortStays, owner.shortStays);
+    assert.equal((await post(input)).status, 400);
+    assert.equal((await post({ ...input, utilityType: 'Water' })).status, 201);
+    const patch = (body) => request(`/api/owner/utility-records/${bill.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    assert.equal((await patch({ paymentStatus: 'Paid' })).status, 400);
+    const paid = await patch({ amountPhp: 1200.10, paymentStatus: 'Paid', paymentDate: '2026-11-20', reference: 'PRIVATE-UTILITY-REF-773', unitId: 'forged', utilityType: 'Gas', billingMonth: '2030-01' });
+    assert.equal(paid.status, 200);
+    const marked = (await paid.json()).utilityRecords.find(row => row.id === bill.id);
+    assert.equal(marked.paymentStatus, 'Paid');
+    assert.equal(marked.paymentDate, '2026-11-20');
+    assert.equal(marked.amountPhp, 1200.10);
+    assert.equal(marked.unitId, input.unitId);
+    assert.equal(marked.billingMonth, input.billingMonth);
+    assert.equal(marked.utilityType, input.utilityType);
+    const reload = await (await request('/api/owner/owner-1/workspace')).json();
+    assert.equal(reload.utilityRecords.find(row => row.id === bill.id).reference, 'PRIVATE-UTILITY-REF-773');
+    for (const path of ['/api/public/workspace', '/api/public/workspace?availability=all', '/api/public/listings?availability=all']) {
+      const publicState = await (await request(path)).json();
+      assert.equal('utilityRecords' in publicState, false);
+      assert.equal(JSON.stringify(publicState).includes('PRIVATE-UTILITY-REF-773'), false);
+    }
+    const unpaid = await patch({ paymentStatus: 'Overdue', paymentDate: null });
+    assert.equal(unpaid.status, 200);
+    const corrected = (await unpaid.json()).utilityRecords.find(row => row.id === bill.id);
+    assert.equal(corrected.paymentDate, null);
+    assert.equal(corrected.reference, '');
+    for (const change of [{ amountPhp: 0 }, { amountPhp: 1.234 }, { amountPhp: '1200' }, { dueDate: '2026-02-30' },
+      { utilityType: 'Gas' }, { billingMonth: '2026-13' }, { paymentStatus: 'Unknown' },
+      { paymentStatus: 'Paid', paymentDate: 'invalid' }, { paymentStatus: 'Due', paymentDate: '2026-11-20' }, { reference: 'x'.repeat(121) }]) {
+      const response = await post({ ...input, billingMonth: '2026-10', ...change });
+      assert.equal(response.status, 400, JSON.stringify(change));
+    }
+  });
+
+  it('21. Utility and directory writes enforce owner, role and portfolio boundaries', async () => {
+    const admin = await (await request('/api/bootstrap')).json();
+    const owner = await (await request('/api/owner/owner-1/workspace')).json();
+    const foreign = admin.units.find(unit => !owner.units.some(owned => owned.id === unit.id));
+    const payload = { unitId: foreign.id, utilityType: 'Electricity', billingMonth: '2026-11', amountPhp: 500,
+      dueDate: '2026-11-30', paymentStatus: 'Due', paymentDate: null, reference: '' };
+    assert.equal((await request('/api/owner/utility-records', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).status, 403);
+    const directory = `/api/owner/units/${foreign.id}/directory`;
+    assert.equal((await request(directory, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ published: true }) })).status, 403);
+    for (const [path, method, body] of [['/api/owner/utility-records', 'POST', payload], [directory, 'PATCH', { published: true }]]) {
+      assert.equal((await request(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }, 'renter')).status, 403);
+      assert.equal((await fetch(`${baseUrl}${path}`, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).status, 401);
+    }
+    const signup = await fetch(`${baseUrl}/api/owners/onboard`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ownerId: 'owner-utility-test', displayName: 'Other utility owner', propertyName: 'Utility privacy test', initialUnitsCount: 1, email: 'utility-privacy@example.test', password: 'secure-example-pass' }) });
+    assert.equal(signup.status, 201);
+    const cookie = signup.headers.get('set-cookie').split(';')[0];
+    const other = await (await fetch(`${baseUrl}/api/owner/owner-utility-test/workspace`, { headers: { Cookie: cookie } })).json();
+    assert.deepEqual(other.utilityRecords, []);
+    const denied = await fetch(`${baseUrl}/api/owner/utility-records/${owner.utilityRecords[0].id}`, {
+      method: 'PATCH', headers: { Cookie: cookie, 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPhp: 1 }),
+    });
+    assert.equal(denied.status, 403);
+    await request('/api/system/reset', { method: 'POST' });
+    const reset = await (await request('/api/owner/owner-1/workspace')).json();
+    assert.deepEqual(reset.utilityRecords, []);
+    assert.ok(reset.units.every(unit => unit.expectedAvailableFrom === null));
+  });
 });

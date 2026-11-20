@@ -6,8 +6,8 @@ Defines the B2B2C privacy isolation boundaries, role-scoped serialization contra
 ## Core Security & Privacy Controls
 
 1. **Strict B2B vs. B2C Data Isolation (Zero Tenant PII Leakage)**
-   - **Public Endpoints (`GET /api/public/listings`, `GET /api/public/workspace`)**: Query only `Vacant` and `published = 1` units and return only public property/unit details alongside stripped owner trust metadata (`id`, `displayName`, `idReviewStatus`, `idSubmissionDate`).
-   - Private tables (`tenants`, `rent_records`, `listing_reports`, `system_events`), private owner account attributes (`contactMethod`, `idDocumentName`), and `Occupied` units are **never** queried or serialized in public endpoints.
+   - **Public Endpoints (`GET /api/public/listings`, `GET /api/public/workspace`)**: Default to published vacancies. Explicit `availability=all` also exposes published occupied unit specifications/status and an optional owner-provided expected date. Hidden units remain excluded; public owner metadata stays stripped.
+   - Private tenant, rent, utility, short-stay and moderation/event tables, private owner fields, and tenant/contract information are never queried or serialized in either public scope. Occupied unit status is public only when the unit is published, without occupant information.
    - **Client Memory Scrubbing (`frontend/src/App.tsx`)**: Signing out or changing accounts clears `tenants`, `rentRecords`, `listingReports`, and `systemEvents` in React state and re-fetches `/api/public/workspace`.
 
 2. **Landlord Portfolio Isolation (`GET /api/owner/:ownerId/workspace`)**
@@ -39,3 +39,9 @@ Defines the B2B2C privacy isolation boundaries, role-scoped serialization contra
 ## Short-stay ledger boundary — November 20, 2026
 
 Short-stay guest and commission records are private. Reads join unit/property ownership; writes require an owner session and portfolio membership. Guests/renters cannot use the new routes; another owner cannot read or change a stay. Public endpoints never query these entries, and React clears them on role/account changes. The server validates dates, rent bounds/precision, guest name, source and status, and sets 5% itself. Source, completion and payment remain owner-reported, so this is not payment verification, an enforceable billing system or fraud-resistant revenue evidence.
+
+## Directory and utility boundaries — November 20, 2026
+
+The owner directory endpoint validates publication/date and portfolio ownership. Changing occupancy preserves publication; hidden inventory is not republished automatically. Expected availability is a separate owner-provided public field, never inferred from a tenant's move-in date, lease or notes. Past/future estimates do not change status or permit an occupied-unit inquiry.
+
+Utility reads join unit/property ownership, while writes check owner role and membership. Bill identity cannot be reassigned during corrections. Server validation covers utility/month, money bounds/precision, real due/payment dates, status consistency, reference length and duplicate identity. Owner responses include only that portfolio's bills. Public responses and admin bootstrap omit them; React clears utility state on sign-out/role changes. Manual reports are not independently verified payments.

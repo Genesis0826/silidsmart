@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Property, Unit, ShortStay, ShortStayInput } from '../types';
 import { SHORT_STAY_COMMISSION_PERCENT } from '../utils/pricing';
-import './ShortStayLedger.css';
+import './PrivateLedger.css';
 
 interface Props {
   units: Unit[];
@@ -93,7 +93,7 @@ export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateSt
       )}
       {notice && <p role="status" style={{ marginTop: '12px', color: 'var(--status-green)' }}>{notice}</p>}
       <div style={{ overflowX: 'auto', marginTop: '24px' }}>
-        <table className="short-stay-table">
+        <table className="private-ledger-table">
           <caption style={{ textAlign: 'left', fontWeight: 700, marginBottom: '10px' }}>Private short-stay records</caption>
           <thead><tr><th>Unit / guest</th><th>Dates</th><th>Rent</th><th>Source</th><th>Commission</th><th>Status</th><th>Action</th></tr></thead>
           <tbody>
