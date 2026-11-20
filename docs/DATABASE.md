@@ -3,6 +3,10 @@
 ## Overview
 Defines the SilidSmart B2B2C relational database schema (`silidsmart/backend/migrations/001_initial_b2b2c_schema.sql`), entity relationships, and strict B2B/B2C privacy boundaries.
 
+## Tenant billing migration 007
+
+`007_tenant_billing.sql` adds `tenant_billing_links` (owner-confirmed, renter-accepted recipient), `tenant_bills` (itemized immutable snapshots and manual settlement), `tenant_bill_checkouts` (one persisted sandbox attempt per bill, unique reference/session/payment), and `tenant_billing_events` (event identity/hash replay audit). Tenant/unit deletion sets link references null without assigning historical bills to a new occupant. Foreign keys cascade explicit example resets through billing children. Partial unique indexes limit active tenant links and current link/month bills. Source snapshots retain centavos; no provider test marks real ledgers paid. See [persistence and rollback contract](TENANT_BILLING.md#api-and-persistence). Back up before applying; export billing audit history before any schema reversal.
+
 ## Optional pitch fixtures
 The opt-in `seed:pitch` CLI adds namespaced fictional data through the existing schema; it is not a migration or a normal-startup reset. It uses a consistent native SQLite backup before writes. A single transaction creates/restores the dedicated pitch owner/property/units and linked ledgers; other portfolios are preserved. Default reruns keep progress; explicit restore rejects unexpected extra inventory. Fixture account identity is checked and can be safely rebound after a global sample-data reset without overwriting an existing password. Database files/backups and generated local manifest are ignored by Git. See [pitch preparation](PITCH_DEMO.md#five-seeded-pitch-examples).
 

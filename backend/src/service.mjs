@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { createCommissionStore, manilaToday } from './commissions.mjs';
 import { preparePitchFixtures, PITCH_OWNER_ID } from './pitch-seed.mjs';
 import { PAYMENT_POLICY } from './payments.mjs';
+import { createTenantBillingStore } from './tenant-billing.mjs';
 import {
   seedOwners,
   seedProperties,
@@ -82,7 +83,7 @@ export function calculateBmcSubscriptionTier(unitCount) {
   };
 }
 
-export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'data', 'silidsmart.sqlite')) {
+export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'data', 'silidsmart.sqlite'), { paymentEnv = process.env, paymentFetch = fetch } = {}) {
   if (dbPath !== ':memory:') {
     fs.mkdirSync(path.dirname(dbPath), { recursive: true });
   }
@@ -148,12 +149,23 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       db.exec('COMMIT;');
     } catch (error) { db.exec('ROLLBACK;'); throw error; }
   }
+  const billingMigration = '007_tenant_billing.sql';
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version = ?').get(billingMigration)) {
+    db.exec('BEGIN;');
+    try {
+      db.exec(fs.readFileSync(path.join(__dirname, '..', 'migrations', billingMigration), 'utf8'));
+      insertMigration.run(billingMigration, new Date().toISOString());
+      db.exec('COMMIT;');
+    } catch (error) { db.exec('ROLLBACK;'); throw error; }
+  }
   const commissions = createCommissionStore(db, { ValidationError, NotFoundError, isIsoDate });
+  const tenantBilling = createTenantBillingStore(db, { env: paymentEnv, fetchImpl: paymentFetch });
 
   function populateSeedData() {
     db.exec('BEGIN TRANSACTION;');
     try {
       db.exec(`
+        DELETE FROM tenant_billing_links;
         DELETE FROM system_events;
         DELETE FROM listing_reports;
         DELETE FROM commission_remittances;
@@ -440,6 +452,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
 
   return {
     auth,
+    tenantBilling,
     /**
      * Public B2C Endpoint Contract:
      * Default scope returns published vacancies; all scope includes published occupied units.
@@ -737,6 +750,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     },
 
     updateUtilityRecord(recordId, input) {
+      tenantBilling.assertSourceEditable('Utility', recordId);
       const row = db.prepare('SELECT * FROM utility_records WHERE id = ?').get(recordId);
       if (!row) throw new NotFoundError('UTILITY_NOT_FOUND', 'Utility bill not found.');
       const bill = validateUtility({ ...mapUtility(row), ...input, unitId: row.unit_id, utilityType: row.utility_type, billingMonth: row.billing_month });
@@ -847,6 +861,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     },
 
     updateRentStatus({ recordId, paymentStatus }) {
+      tenantBilling.assertSourceEditable('Rent', recordId);
       if (!recordId || !['Paid', 'Due', 'Overdue'].includes(paymentStatus)) {
         throw new ValidationError('INVALID_PAYMENT_STATUS', 'paymentStatus must be Paid, Due, or Overdue.');
       }

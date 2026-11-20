@@ -3,6 +3,8 @@ import type { UserRole, AuthUser } from '../types';
 import { ChevronDown } from 'lucide-react';
 
 interface RoleSwitcherProps {
+  renterPage: 'directory' | 'bills';
+  onOpenBills: () => void;
   currentRole: UserRole;
   onRoleChange: (role: UserRole) => void;
   onResetData: () => void;
@@ -11,7 +13,7 @@ interface RoleSwitcherProps {
   onLogout: () => void;
 }
 
-export const RoleSwitcher = ({ currentRole, onRoleChange, onResetData, currentUser, onOpenAuthModal, onLogout }: RoleSwitcherProps) => {
+export const RoleSwitcher = ({ currentRole, onRoleChange, onResetData, currentUser, onOpenAuthModal, onLogout, renterPage, onOpenBills }: RoleSwitcherProps) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const workspaceLabel = currentUser?.role === 'owner' ? 'My properties' : 'Administration';
   return (
@@ -19,7 +21,8 @@ export const RoleSwitcher = ({ currentRole, onRoleChange, onResetData, currentUs
       <div className="container site-header-inner">
         <a href="/" className="site-wordmark editorial-heading">SilidSmart<span>.ph</span></a>
         <nav aria-label="Main navigation" className="role-switcher-nav">
-          <button className="role-switcher-tab" aria-current={currentRole === 'renter' ? 'page' : undefined} onClick={() => onRoleChange('renter')}>Find a rental</button>
+          <button className="role-switcher-tab" aria-current={currentRole === 'renter' && renterPage === 'directory' ? 'page' : undefined} onClick={() => onRoleChange('renter')}>Find a rental</button>
+          {currentUser?.role === 'renter' && <button className="role-switcher-tab" aria-current={renterPage === 'bills' ? 'page' : undefined} onClick={onOpenBills}>My bills</button>}
           {currentUser && currentUser.role !== 'renter' && (
             <button className="role-switcher-tab" aria-current={currentRole === currentUser.role ? 'page' : undefined} onClick={() => onRoleChange(currentUser.role)}>{workspaceLabel}</button>
           )}

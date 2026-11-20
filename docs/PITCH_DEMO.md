@@ -1,9 +1,21 @@
 # Saturday pitch walkthrough
 
-**Current version:** free management and proposed online commissions supersede the earlier subscription/manual-remittance model. Use the working occupancy flow and Monthly Bill Board. Checkout, contracts, payouts and refund guarantees remain future work; the source paper’s payment demo is not runnable. See [payment pilot](PAYMENT_PILOT.md).
+**Current version:** free management and proposed online commissions supersede the earlier subscription/manual-remittance model. Occupancy, Monthly Bill Board and private tenant statements work. PayMongo sandbox wiring exists but is disabled without provider setup; do not demonstrate or claim live collection, contracts, payouts or refund guarantees. The paper's live-payment demo is not runnable. See [payment pilot](PAYMENT_PILOT.md) and [Tenant Billing](TENANT_BILLING.md).
 
 
 For November 21, 2026. Present SilidSmart as a concept prototype with example accounts, rentals, prices, and approximate map locations.
+
+## Optional private tenant bill demonstration
+
+Use fictional sample accounts only. Prepare this extra flow before the pitch if time is short; it is separate from viewing approval.
+
+1. Sign in as the pitch owner, open **Tenant Billing**, select the existing PITCH 03 tenant, and invite the sample renter `juan.delacruz@gmail.com` after explicitly confirming the fictional tenancy.
+2. In a separate browser profile/context, sign in to that sample renter (`password123`), open **My bills**, and accept the invitation. A separate context lets the presenter keep both accounts signed in without sharing cookies.
+3. Owner refreshes billing access, selects the accepted recipient/current month and due date, and includes recorded ₱7,000 rent, ₱1,200 electricity and ₱300 water. Check the recipient/charges, then publish.
+4. Renter refreshes My bills: recorded total is ₱8,500, already-marked-paid water ₱300, amount due ₱8,200. Explain that only owner-published charges are shared, and missing utility bills are not assumed free.
+5. Show **Checkout unavailable — setup required**. Say: “The sandbox payment path is prepared. We have not configured or tested an actual PayMongo account, so this demo collects no money.” Do not use real payment details or present a browser return as proof of payment.
+
+The implementation's browser rehearsal uses isolated records; no tenant invitation, statement or receipt was added to the running pitch data. If an earlier statement already exists, inspect its state instead of blindly publishing again. Manual full external receipt is an optional deliberate demo action that changes the source ledger; it is not provider verification. For real tenants, owners must establish account identity and actual tenancy before inviting. [Complete workflow/setup](TENANT_BILLING.md).
 
 ## Five seeded pitch examples
 

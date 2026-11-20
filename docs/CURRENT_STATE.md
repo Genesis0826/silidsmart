@@ -1,6 +1,14 @@
 # Current State Assessment
 
-## Latest commission-only pilot update November 20 2026
+## Latest tenant billing and sandbox checkout update November 20 2026
+
+- Built **Owner → Tenant Billing** and **Renter → My bills**. Owner confirms actual tenancy and invites the registered renter; renter accepts; owner publishes selected monthly rent/utility snapshots. Viewing approval does not grant billing access. Only the recipient sees their private statement, totals, prior manual payments and amount due.
+- Statements lock included source records. Void/reissue supports corrections; confirmed full external receipt updates the included unpaid records manually. Ended tenancy does not transfer bills to another occupant. Migration 007 adds links, statements, test checkouts and event identities without changing prior rental records.
+- PayMongo Hosted Checkout v2 is wired to a separately gated **sandbox-only** endpoint with session authorization, server-side amounts, idempotency, signed raw-body events and retrieve/expire reconciliation. Default checkout is disabled because provider access is absent. SandboxPaid never settles real bills or produces a commission/payout. No actual provider-account acceptance or real-money test occurred.
+- All 50 backend cases pass. Isolated hidden Edge acceptance covers invitation/acceptance/publication, ₱8,500 total and ₱8,200 due, disabled gateway, reload, owner external settlement, desktop/mobile layouts and logout/public privacy. Explicit select labels resolved the first browser selector failure. [Current contract and setup](TENANT_BILLING.md).
+- Live checkout, owner split routing, automatic commission deductions, short-stay booking checkout, holds/refunds and production acceptance remain unfinished. Free management and proposed 3% monthly / 5% short-stay / zero utility/external-payment policy are unchanged.
+
+## Earlier commission-only pilot checkpoint November 20 2026
 
 This section supersedes the older pricing and manual-settlement descriptions below. See [payment pilot contract](PAYMENT_PILOT.md).
 

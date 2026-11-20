@@ -11,7 +11,7 @@ export function paymentReadiness(env = process.env) {
   return {
     mode: 'Preparation only', checkoutEnabled: false, testCredentialsConfigured,
     provider: 'PayMongo', splitPayments: 'Not integrated',
-    message: 'Online checkout is not available. Test credentials, approved owner routing, tenant billing access and verified payment events are required before checkout can be enabled.',
+    message: 'Live online checkout is unavailable. Tenant Billing has a separately gated sandbox checkout; test payments do not settle actual rent. Approved owner routing and provider acceptance remain required for real payments.',
     holdsAndRefunds: 'Not implemented or guaranteed', policy: PAYMENT_POLICY,
   };
 }
@@ -39,31 +39,43 @@ export function quoteProposedPayment(input, ValidationError) {
 }
 
 // Provider adapter prepared against PayMongo Hosted Checkout v2 documentation.
-// It is deliberately not connected to an application checkout route: owner split
-// routing and tenant-bill authorization must be agreed before accepting rent.
+// Tenant statements use this in test mode only. Live owner routing is not enabled.
 export function createPayMongoSandboxAdapter({ secretKey, fetchImpl = fetch }) {
   if (typeof secretKey !== 'string' || !/^sk_test_[A-Za-z0-9]+$/.test(secretKey)) throw new Error('A PayMongo test-mode secret key is required. Live keys are not accepted.');
+  const request = async (route, options = {}) => {
+    const response = await fetchImpl(`https://api.paymongo.com${route}`, {
+      ...options, signal: AbortSignal.timeout(15_000),
+      headers: { Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString('base64')}`, 'Content-Type': 'application/json', ...options.headers },
+    });
+    if (!response.ok) throw new Error('PayMongo sandbox request failed. No real payment was recorded.');
+    const data = (await response.json()).data;
+    if (!/^cs_[A-Za-z0-9_-]+$/.test(data?.id || '') || data.type !== 'checkout_session' || !data.attributes || data.attributes.livemode === true) throw new Error('Invalid sandbox checkout response.');
+    return data;
+  };
+  const sessionPath = id => {
+    if (typeof id !== 'string' || !/^cs_[A-Za-z0-9_-]{1,120}$/.test(id)) throw new Error('Invalid checkout session identity.');
+    return `/v1/checkout_sessions/${id}`;
+  };
   return {
     async createTestSession({ reference, lineItems, successUrl, cancelUrl }) {
       if (typeof reference !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(reference)
         || !Array.isArray(lineItems) || !lineItems.length || lineItems.length > 20
-        || lineItems.some(i => typeof i.name !== 'string' || !i.name.trim() || i.name.length > 120 || !Number.isSafeInteger(i.amount) || i.amount < 100 || i.amount > 1_000_000_000)) throw new Error('Invalid sandbox checkout details. Amounts must be integer PHP centavos.');
+        || lineItems.some(i => typeof i.name !== 'string' || !i.name.trim() || i.name.length > 120 || !Number.isSafeInteger(i.amount) || i.amount < 1 || i.amount > 1_000_000_000)) throw new Error('Invalid sandbox checkout details. Amounts must be integer PHP centavos.');
       for (const url of [successUrl,cancelUrl]) {
         const parsed = new URL(url);
         if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && ['localhost','127.0.0.1'].includes(parsed.hostname))) throw new Error('Use HTTPS return URLs or a local sandbox URL.');
       }
-      const response = await fetchImpl('https://api.paymongo.com/v2/checkout_sessions', {
-        method: 'POST', signal: AbortSignal.timeout(15_000),
-        headers: { Authorization: `Basic ${Buffer.from(`${secretKey}:`).toString('base64')}`, 'Content-Type': 'application/json' },
+      const data = await request('/v2/checkout_sessions', {
+        method: 'POST', headers: { 'Idempotency-Key': reference },
         body: JSON.stringify({ data: { attributes: { reference_number: reference,
           line_items: lineItems.map(i => ({ name: i.name, amount: i.amount, currency: 'PHP', quantity: 1 })),
           payment_method_types: ['qrph'], success_url: successUrl, cancel_url: cancelUrl,
         } } }),
       });
-      if (!response.ok) throw new Error('PayMongo sandbox request failed. No payment was recorded.');
-      const data = (await response.json()).data;
       if (!data?.id || data.attributes?.livemode !== false || new URL(data.attributes.checkout_url).origin !== 'https://checkout.paymongo.com') throw new Error('PayMongo did not return a valid test-mode checkout.');
       return { id: data.id, checkoutUrl: data.attributes.checkout_url, mode: 'test', paid: false };
     },
+    retrieveTestSession(id) { return request(sessionPath(id), { method: 'GET' }); },
+    expireTestSession(id) { return request(`${sessionPath(id)}/expire`, { method: 'POST' }); },
   };
 }

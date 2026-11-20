@@ -15,28 +15,31 @@ function sendJson(res, statusCode, payload) {
   res.end(body);
 }
 
-function readJsonBody(req) {
+function readRawBody(req) {
   return new Promise((resolve, reject) => {
-    let raw = '';
+    const chunks = [];
+    let size = 0;
     req.on('data', (chunk) => {
-      raw += chunk;
-      if (raw.length > 1_000_000) {
+      size += chunk.length;
+      if (size > 1_000_000) {
         reject(new ValidationError('PAYLOAD_TOO_LARGE', 'Request body exceeds 1MB limit.'));
-      }
-    });
-    req.on('end', () => {
-      if (!raw.trim()) {
-        resolve({});
         return;
       }
-      try {
-        resolve(JSON.parse(raw));
-      } catch {
-        reject(new ValidationError('INVALID_JSON', 'Request body must be valid JSON.'));
-      }
+      chunks.push(chunk);
     });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
+}
+
+async function readJsonBody(req) {
+  const raw = (await readRawBody(req)).toString('utf8');
+  if (!raw.trim()) return {};
+  try {
+    const value = JSON.parse(raw);
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+    return value;
+  } catch { throw new ValidationError('INVALID_JSON', 'Request body must be a JSON object.'); }
 }
 
 export function createAppServer(service = createSilidSmartService(), { allowLegacyCommissionWrites = false } = {}) {
@@ -55,6 +58,10 @@ export function createAppServer(service = createSilidSmartService(), { allowLega
     const method = req.method || 'GET';
 
     try {
+      if (method === 'POST' && pathname === '/api/payments/paymongo/webhook') {
+        sendJson(res, 200, service.tenantBilling.webhook(await readRawBody(req), req.headers['paymongo-signature']));
+        return;
+      }
       // Cookie sessions determine identity; client role/owner fields grant no access.
       if (method !== 'GET' && req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) {
         throw new AccessError(403, 'CROSS_ORIGIN_DENIED', 'Use the application to submit this request.');
@@ -90,6 +97,44 @@ export function createAppServer(service = createSilidSmartService(), { allowLega
       }
       if (pathname === '/api/bootstrap' || pathname.startsWith('/api/admin/') || pathname.startsWith('/api/system/')) requireRole('admin');
       if (pathname.startsWith('/api/owner/')) requireRole('owner');
+      if (pathname.startsWith('/api/tenant/')) requireRole('renter');
+      if (method === 'GET' && pathname === '/api/owner/tenant-billing') {
+        sendJson(res, 200, service.tenantBilling.ownerWorkspace(user.ownerId)); return;
+      }
+      if (method === 'GET' && pathname === '/api/tenant/billing') {
+        sendJson(res, 200, service.tenantBilling.tenantWorkspace(user.id)); return;
+      }
+      if (method === 'POST' && pathname === '/api/owner/tenant-links') {
+        sendJson(res, 201, service.tenantBilling.invite(user.ownerId, await readJsonBody(req))); return;
+      }
+      const ownerLink = pathname.match(/^\/api\/owner\/tenant-links\/([^/]+)$/);
+      if (method === 'PATCH' && ownerLink) {
+        const input = await readJsonBody(req);
+        if (input.action !== 'Revoke') throw new ValidationError('INVALID_LINK_ACTION', 'Choose Revoke.');
+        service.tenantBilling.revoke(user.ownerId, decodeURIComponent(ownerLink[1])); sendJson(res, 200, { ok: true }); return;
+      }
+      const tenantLink = pathname.match(/^\/api\/tenant\/tenant-links\/([^/]+)$/);
+      if (method === 'PATCH' && tenantLink) {
+        service.tenantBilling.respond(user.id, decodeURIComponent(tenantLink[1]), await readJsonBody(req)); sendJson(res, 200, { ok: true }); return;
+      }
+      if (method === 'POST' && pathname === '/api/owner/tenant-bills') {
+        sendJson(res, 201, service.tenantBilling.publish(user.ownerId, await readJsonBody(req))); return;
+      }
+      const ownerBill = pathname.match(/^\/api\/owner\/tenant-bills\/([^/]+)$/);
+      if (method === 'PATCH' && ownerBill) {
+        const input = await readJsonBody(req), id = decodeURIComponent(ownerBill[1]);
+        if (input.action === 'Void') service.tenantBilling.voidBill(user.ownerId, id, input);
+        else if (input.action === 'PaidExternal') service.tenantBilling.markExternal(user.ownerId, id, input);
+        else throw new ValidationError('INVALID_BILL_ACTION', 'Choose Void or PaidExternal.');
+        sendJson(res, 200, { ok: true }); return;
+      }
+      const tenantCheckout = pathname.match(/^\/api\/tenant\/bills\/([^/]+)\/(checkout|reconcile)$/);
+      if (method === 'POST' && tenantCheckout) {
+        const id = decodeURIComponent(tenantCheckout[1]), input = await readJsonBody(req);
+        const result = tenantCheckout[2] === 'checkout' ? await service.tenantBilling.checkout(user.id, id)
+          : await service.tenantBilling.reconcile(user.id, id, input.cancel === true);
+        sendJson(res, 200, result || { ok: true }); return;
+      }
       if (method === 'POST' && (pathname === '/api/public/inquiries' || pathname === '/api/public/reports')) requireRole('renter');
       if (!allowLegacyCommissionWrites && method !== 'GET'
         && (/^\/api\/owner\/commission-statements(?:\/|$)/.test(pathname) || /^\/api\/admin\/commission-(statements|remittances)(?:\/|$)/.test(pathname))) {

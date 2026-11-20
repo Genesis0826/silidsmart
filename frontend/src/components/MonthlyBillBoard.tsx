@@ -25,6 +25,6 @@ export function MonthlyBillBoard({units,properties,rent,utilities,onRent,onUtili
     <p className="mono-num" style={{margin:'16px 0'}}>Recorded charges: <strong>{pesos(totals.billed/100)}</strong> · Marked paid: <strong>{pesos(totals.paid/100)}</strong> · Unpaid: <strong>{pesos((totals.billed-totals.paid)/100)}</strong></p>
     <div className="private-ledger-scroll"><table className="private-ledger-table"><thead><tr><th>Property / unit</th><th>Rent</th><th>Electricity</th><th>Water</th><th>Wi-Fi</th><th>Total recorded</th></tr></thead>
       <tbody>{rows.map(row=><tr key={row.unit.id}><td><strong>{row.unit.unitLabel}</strong><br/>{properties.find(p=>p.id===row.unit.propertyId)?.name}</td><td>{cell(row.rent)}</td><td>{cell(row.electricity)}</td><td>{cell(row.water)}</td><td>{cell(row.wifi)}</td><td>{cell(row.total)}</td></tr>)}{!rows.length&&<tr><td colSpan={6}>Add a unit to start your monthly bill board.</td></tr>}</tbody></table></div>
-    <p style={{marginTop:'16px'}}>Scroll the table horizontally on smaller screens to see every bill type. This is a private owner overview. Tenant bills, automatic reminders, online payment and receipts are planned pilot features.</p>
+    <p style={{marginTop:'16px'}}>Scroll the table horizontally on smaller screens. To share selected charges privately with a confirmed tenant, open Tenant Billing. Automatic reminders and live online payments remain unavailable.</p>
   </section>;
 }

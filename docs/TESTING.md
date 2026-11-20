@@ -1,6 +1,12 @@
 # Testing Strategy & Verification Suite
 
-## Commission pilot acceptance November 20 2026
+## Tenant billing acceptance November 20 2026
+
+All 50 backend cases pass, including 14 private statement/gateway cases in `backend/tests/tenant-billing.test.mjs`. They exercise mutual tenant linkage, owner publication, exact selected totals/paid amounts, source locks, correction history, external full receipt, move-out/revocation, HTTP roles and forged ownership/amounts, disabled setup, idempotent/concurrent/uncertain creation, the provider key-expiry limit, signed event replay/live/signature/amount/currency/session checks, test-only settlement isolation, retrieve/expire and logout. Provider responses are injected fixtures: no real PayMongo account, credentials or funds were used.
+
+Hidden Edge on isolated sample records verifies the complete owner invite → renter accept → owner publish → renter itemized bill → owner external receipt → tenant zero-due flow; default checkout disabled, reload, public/logout privacy, desktop/mobile width and no page errors. The initial exact select-label mismatch was fixed with explicit accessible names before the full passing rerun. Evidence: `D:/Techno/document_work/tenant_billing/browser-verification.json` and screenshots in the same folder. See [current contract](TENANT_BILLING.md). TypeScript, Oxlint and production build are required release checks.
+
+## Earlier commission pilot checkpoint November 20 2026
 
 The 36-case suite includes new free-management boundaries, 3%/5%/zero hypothetical fees, currency and night-count validation, disabled payment readiness, secret redaction, test-only v2 adapter responses, reconciled monthly board values, private persisted Wi-Fi, unchanged ledgers after quoting and default HTTP legacy-write rejection. Historical commission tests explicitly opt into the archived contract on isolated servers. TypeScript, Oxlint and production Vite build pass.
 

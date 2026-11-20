@@ -1,8 +1,10 @@
 # Security & Privacy Policy
 
-## Payment preparation boundary November 20 2026
+## Tenant billing and sandbox boundary November 20 2026
 
-No live gateway or application checkout is enabled. Readiness returns only a configuration boolean, never the process key. Owner quote/readiness routes use the existing session role checks and do not write financial records. The sandbox adapter rejects live keys, uses a fixed provider endpoint and integer centavos, has a timeout and rejects live-mode/invalid-host replies. It has no public route. Signature verification, event replay/amount/account matching, tenant-to-bill access and reconciliation must be implemented and accepted before routing rent to any provider.
+No live gateway is enabled. Tenant statements require owner-confirmed actual tenancy, an invitation to an existing renter account, acceptance and explicit publication. The prototype does not verify email ownership/real identity; owners must check the recipient. A viewing approval never exposes billing. Renter IDs and owner IDs in request bodies grant no access. Own-account statement routes use session authorization and no-store responses; logout clears private UI state.
+
+Sandbox checkout derives exact unpaid amounts from the stored statement, rejects live keys/events, uses a fixed provider endpoint, safe hosted URL, timeout and a persisted idempotency key. Old uncertain attempts cannot be retried beyond the provider key window. Open checkouts prevent conflicting void/manual-settlement/revocation actions. Raw-byte test signatures use timestamped HMAC, timing-safe comparison and freshness checks; unique event/payment identities, exact currency/amount/reference/session matching and server-side reconciliation protect the test audit. A browser return never proves payment. SandboxPaid does not alter real balances, revenue or payouts. See [Tenant Billing](TENANT_BILLING.md) for contracts and remaining provider acceptance gates. Owner quote/readiness routes remain hypothetical and never expose keys.
 
 Earlier commission mutations are blocked by the normal server and archived examples do not verify provider receipt. No property-safety or 48-hour refund guarantee is established. See [payment pilot gates](PAYMENT_PILOT.md).
 

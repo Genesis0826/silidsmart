@@ -31,13 +31,13 @@ describe('Commission-only pilot preparation',()=>{
       calls++;assert.equal(url,'https://api.paymongo.com/v2/checkout_sessions');
       const body=JSON.parse(options.body);assert.deepEqual(body.data.attributes.payment_method_types,['qrph']);
       assert.equal(body.data.attributes.line_items[0].currency,'PHP');
-      return {ok:true,json:async()=>({data:{id:'cs_fixture',attributes:{livemode:false,checkout_url:'https://checkout.paymongo.com/fixture'}}})};
+      return {ok:true,json:async()=>({data:{id:'cs_fixture',type:'checkout_session',attributes:{livemode:false,checkout_url:'https://checkout.paymongo.com/fixture'}}})};
     }});
     assert.equal((await adapter.createTestSession(details)).paid,false);assert.equal(calls,1);
     await assert.rejects(adapter.createTestSession({...details,lineItems:[{name:'Bad',amount:1.2}]}));assert.equal(calls,1);
     assert.throws(()=>createPayMongoSandboxAdapter({secretKey:'sk_live_dummyfixture'}));
     const wrong=createPayMongoSandboxAdapter({secretKey:'sk_test_dummyfixture',fetchImpl:async()=>({ok:true,json:async()=>({data:{id:'cs_live',attributes:{livemode:true,checkout_url:'https://checkout.paymongo.com/live'}}})})});
-    await assert.rejects(wrong.createTestSession(details),/test-mode/);
+    await assert.rejects(wrong.createTestSession(details),/sandbox|test-mode/);
   });
   it('builds the owner board from actual month records, preserves missing bills, and reconciles centavos without inventing online payments',()=>{
     assert.equal(rentMonthKey('November 2026'),'2026-11'); assert.equal(rentMonthKey('Unknown 2026'),null);

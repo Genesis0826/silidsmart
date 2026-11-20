@@ -9,12 +9,14 @@ import { ownerPlan } from '../utils/pricing';
 import { ShortStayLedger } from './ShortStayLedger';
 import { UtilityTracker } from './UtilityTracker';
 import { MonthlyBillBoard } from './MonthlyBillBoard';
+import { OwnerTenantBilling } from './OwnerTenantBilling';
 import { BusinessModel } from './BusinessModel';
 import { UnitDirectorySettings } from './UnitDirectorySettings';
 import { CommissionStatements } from './CommissionStatements';
 import type { CommissionStatement, CommissionRemittanceInput } from '../types';
 
 interface OwnerViewProps {
+  onRefreshRecords: () => void;
   commissionStatements: CommissionStatement[];
   onIssueCommission: (month: string) => Promise<boolean>;
   onSubmitRemittance: (id: string, input: CommissionRemittanceInput) => Promise<boolean>;
@@ -41,6 +43,7 @@ interface OwnerViewProps {
 }
 
 export const OwnerView = ({
+  onRefreshRecords,
   commissionStatements,
   owner,
   properties,
@@ -59,7 +62,7 @@ export const OwnerView = ({
   onUpdateRentStatus,
   onRespondInquiry,
 }: OwnerViewProps) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays' | 'utilities' | 'commissions' | 'billBoard'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays' | 'utilities' | 'commissions' | 'billBoard' | 'tenantBilling'>('inventory');
   const [directoryUnit, setDirectoryUnit] = useState<Unit | null>(null);
   const [tableDensity, setTableDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [copiedPostToast, setCopiedPostToast] = useState<string | null>(null);
@@ -449,6 +452,7 @@ export const OwnerView = ({
               </button>
 
               <button onClick={() => setActiveTab('billBoard')} className={`saas-nav-item ${activeTab === 'billBoard' ? 'active' : ''}`}><span>Monthly Bill Board</span></button>
+              <button onClick={() => setActiveTab('tenantBilling')} className={`saas-nav-item ${activeTab === 'tenantBilling' ? 'active' : ''}`}><span>Tenant Billing</span></button>
               <button onClick={() => setActiveTab('utilities')}
                 className={`saas-nav-item ${activeTab === 'utilities' ? 'active' : ''}`}>
                 <span>Utility Tracker</span>
@@ -1555,6 +1559,7 @@ export const OwnerView = ({
             )}
             {activeTab === 'commissions' && <CommissionStatements statements={commissionStatements} stays={shortStays} />}
             {activeTab === 'billBoard' && <MonthlyBillBoard units={ownerUnits} properties={ownerProperties} rent={ownerRentRecords} utilities={utilityRecords} onRent={() => setActiveTab('ledger')} onUtilities={() => setActiveTab('utilities')} />}
+            {activeTab === 'tenantBilling' && <OwnerTenantBilling key={owner.id} tenants={ownerTenants} units={ownerUnits} rent={ownerRentRecords} utilities={utilityRecords} onRecordsChanged={onRefreshRecords} />}
             {activeTab === 'utilities' && (
               <UtilityTracker units={ownerUnits} properties={ownerProperties} records={utilityRecords} onSave={onSaveUtility} />
             )}

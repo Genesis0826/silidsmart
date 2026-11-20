@@ -4,7 +4,9 @@
 
 Free owner management supersedes unit-based subscriptions. MonthlyBillBoard derives a private per-unit/month overview from rent and Electricity/Water/Wi-Fi records. Missing records remain explicit; no provider status is inferred. BusinessModel calls owner-only quote/readiness APIs; all quotes are hypothetical with zero charged.
 
-The server-only PayMongo v2 adapter is not wired into application checkout. Owner routing, tenant-bill authorization, verified provider events, idempotency and reconciliation remain prerequisites. Legacy manual snapshots are preserved, with HTTP mutation disabled by default and a read-only UI. The older payment row below describes historical behavior; [PAYMENT_PILOT.md](PAYMENT_PILOT.md) is the current contract.
+`tenant-billing.mjs` owns private tenancy links, immutable owner-published statements, source locks and external receipt transactions. Renter My bills fetches only its authenticated account's statements through separate endpoints; public workspace arrays stay stripped. A mutual in-app invitation binds the existing tenant row to the renter account before publication. Viewing approval is separate.
+
+The server-only PayMongo v2 adapter is wired to sandbox tenant checkout only. It uses persisted idempotency, raw-body test webhook verification, exact amount/currency/session/reference matching and retrieve/expire reconciliation. Sandbox receipts are separate from actual ledger payment states. Live owner routing, payouts and actual provider-account acceptance remain prerequisites for real rent. Legacy manual commission snapshots stay read-only by default. [Tenant Billing](TENANT_BILLING.md) and [PAYMENT_PILOT.md](PAYMENT_PILOT.md) are the current contracts.
 
 ## Overview
 Defines the system boundaries, Airbnb/Booking.com-to-SilidSmart B2B2C architectural translation, role-scoped data fetching, and runtime data flows.

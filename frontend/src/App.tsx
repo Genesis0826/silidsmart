@@ -23,6 +23,7 @@ import type {
 } from './types';
 import { initialUsers } from './seedData';
 import { RoleSwitcher } from './components/RoleSwitcher';
+import { TenantBills } from './components/TenantBills';
 import { CustomerView } from './components/CustomerView';
 import { OwnerView } from './components/OwnerView';
 import { AdminView } from './components/AdminView';
@@ -90,6 +91,7 @@ export function App() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [renterPage, setRenterPage] = useState<'directory' | 'bills'>(() => new URLSearchParams(window.location.search).get('tenantBills') === '1' ? 'bills' : 'directory');
   const [rentRecords, setRentRecords] = useState<RentRecord[]>([]);
   const [shortStays, setShortStays] = useState<ShortStay[]>([]);
   const [utilityRecords, setUtilityRecords] = useState<UtilityRecord[]>([]);
@@ -329,6 +331,7 @@ export function App() {
   };
 
   const clearWorkspace = () => {
+    setRenterPage('directory');
     ++requestSeqRef.current;
     setLoadedKey(null);
     setOwners([]); setProperties([]); setUnits([]); setTenants([]);
@@ -560,7 +563,9 @@ export function App() {
       {/* Persistent Navigation Header with Role Switcher & Auth */}
       <RoleSwitcher
         currentRole={currentRole}
-        onRoleChange={handleRoleChange}
+        onRoleChange={role => { setRenterPage('directory'); handleRoleChange(role); }}
+        renterPage={renterPage}
+        onOpenBills={() => setRenterPage('bills')}
         onResetData={() => void handleResetData()}
         currentUser={currentUser}
         onOpenAuthModal={handleOpenAuthModal}
@@ -664,7 +669,7 @@ export function App() {
           </div>
         )}
 
-        {!loadError && hasLoadedRole && currentRole === 'renter' && (
+        {!loadError && hasLoadedRole && currentRole === 'renter' && (renterPage === 'directory' || currentUser?.role !== 'renter') && (
           <CustomerView
             properties={properties}
             units={units}
@@ -677,8 +682,10 @@ export function App() {
           />
         )}
 
+        {currentRole === 'renter' && renterPage === 'bills' && currentUser?.role === 'renter' && <TenantBills key={currentUser.id} />}
         {!loadError && hasLoadedRole && currentRole === 'owner' && currentUser?.role === 'owner' && activeOwner?.id === currentUser.ownerId && (
           <OwnerView
+            onRefreshRecords={() => { void loadWorkspace('owner', currentUser.ownerId || 'owner-1'); }}
             owner={activeOwner}
             properties={properties}
             units={units}
@@ -754,7 +761,7 @@ export function App() {
           <div>
             <strong style={{ color: 'var(--brand-navy)' }}>SilidSmart.ph</strong> • Small Rental Operations & Public Room Directory
             <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-              Concept prototype - sample properties only • Free discovery and owner management • Proposed online rent fees: 3% monthly / 5% short stays • Checkout not available
+              Concept prototype - sample properties only • Free discovery and owner management • Proposed online rent fees: 3% monthly / 5% short stays • Live checkout unavailable
             </div>
           </div>
           <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

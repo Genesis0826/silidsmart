@@ -1,0 +1,23 @@
+.tenant-billing-page { padding-top: 32px; padding-bottom: 48px; max-width: 960px; }
+.tenant-billing-page h1, .tenant-billing-owner h2 { margin-bottom: 12px; }
+.tenant-billing-owner p, .tenant-billing-page p { line-height: 1.6; margin: 10px 0; }
+.tenant-billing-owner { padding: 24px; }
+.tenant-statement, .billing-notice, .billing-form { border: 1px solid var(--border-light); border-radius: 10px; padding: 20px; margin: 20px 0; overflow-wrap: anywhere; }
+.billing-notice { background: var(--bg-secondary, #f5f7fa); }
+.billing-form { display: grid; gap: 14px; }
+.billing-form label { display: grid; gap: 6px; }
+.billing-form .billing-check, .billing-check { display: flex; align-items: flex-start; gap: 8px; margin: 10px 0; }
+.billing-check input { flex: 0 0 auto; margin-top: 4px; }
+.billing-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.billing-actions .btn { white-space: normal; }
+.tenant-charge-table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 0.9rem; }
+.tenant-charge-table td, .tenant-charge-table th { border-bottom: 1px solid var(--border-light); text-align: left; padding: 10px 6px; overflow-wrap: anywhere; }
+.tenant-charge-table td:nth-child(2) { font-variant-numeric: tabular-nums; }
+.tenant-total { font-size: 1.25rem; }
+.billing-error { color: #a32424; font-weight: 600; }
+.billing-form fieldset { border: 0; padding: 0; min-width: 0; }
+@media(max-width: 480px) {
+  .tenant-billing-owner, .tenant-statement, .billing-form, .billing-notice { padding: 14px; }
+  .tenant-charge-table { font-size: 0.8rem; }
+  .billing-actions .btn { width: 100%; }
+}

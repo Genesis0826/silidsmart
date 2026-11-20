@@ -11,7 +11,7 @@ The November 20 business-paper review and the user's subsequent request replace 
 | Utilities, deposits, taxes and other charges | 0% |
 | Cash or external transfer recorded manually | 0% |
 
-Existing tenants could participate only after a tenant billing/authorization flow is implemented. No subscription, nightly booking engine, tenant checkout or automatic deduction exists. The user confirmed they do not yet have PayMongo sandbox credentials or approved Platforms access and asked to prepare the integration and show its limits.
+Existing tenants can now accept a private billing invitation and receive owner-published statements. A tenant-statement checkout endpoint is wired to sandbox only, with no real collection or automatic deduction. No subscription or nightly booking engine exists. The user confirmed they do not yet have PayMongo sandbox credentials or approved Platforms access and asked to prepare the integration and show its limits. See [Tenant Billing](TENANT_BILLING.md).
 
 ## Built in this update
 
@@ -20,16 +20,18 @@ Existing tenants could participate only after a tenant billing/authorization flo
 - Migration 006 preserves existing bills while adding Wi-Fi to the allowed types. Existing roles and portfolio checks apply to all new utility writes.
 - Owner-only `GET /api/owner/payment-readiness` and `POST /api/owner/payment-quotes`. Quotes validate currency and 1–29-night eligibility and return hypothetical fees with `chargedPhp: 0`; they never create a bill, stay, statement, payment or revenue.
 - A server-only PayMongo Hosted Checkout v2 sandbox adapter with test-key-only validation, integer-centavo payloads, a fixed provider endpoint, timeout and rejection of live-mode or invalid-host replies. It is tested with an injected provider response, not a real PayMongo account.
+- Owner-confirmed/renter-accepted billing access, selected monthly rent/utility snapshots and an account-scoped My bills page. Owner publication is separate from viewing approval. Source locks, void history and manual full external receipt keep statement/ledger totals consistent.
+- Sandbox checkout routes now use persisted idempotency, signed raw-body test webhooks, exact amount/currency/reference/session checks, event replay audit and retrieve/expire reconciliation. SandboxPaid is a separate test state; actual bills remain unpaid until a real external receipt is recorded manually. Migration 007 adds billing/access/test audit tables without repricing older records.
 
 ## Integration boundaries and activation gates
 
-The adapter is **not exposed through a checkout endpoint**. Even detecting a valid-looking test key does not enable payments. `checkoutEnabled` remains false. There are no live transfers or verified provider receipts.
+The adapter is exposed only through **authorized tenant-statement sandbox checkout**. A test key alone does not enable it: explicit sandbox enablement, a webhook secret and a safe return origin are also required. Default checkout remains disabled because access is absent; live checkout is always disabled. There are no live transfers or actual provider-verified receipts. Local fixtures are not provider acceptance.
 
-Before wiring a tenant checkout, obtain provider-approved owner onboarding/split routing and a confirmed pricing agreement. Implement authenticated tenant-to-bill access; immutable bill/payment snapshots and idempotency; raw-body signature verification; amount/currency/account/session matching; replay handling; provider reconciliation; failed, cancelled and refunded outcomes; and actual sandbox acceptance. A browser return URL alone must never mark a record Paid online.
+Before live rent collection, obtain provider-approved owner onboarding/split routing, a confirmed pricing agreement, actual sandbox acceptance and complete live failed/refund/dispute/reconciliation operations. Current sandbox account authorization, snapshots, idempotency, signed events and retrieve/expire paths are implemented and tested locally; live behavior is not. A browser return URL alone never marks a record paid.
 
-The backend reads `PAYMONGO_SECRET_KEY` from the process environment; `.env.example` is a blank configuration reference and is not automatically loaded. Use a local ignored environment file only after access is granted. Never place secrets in React/Vite configuration, request logs, screenshots, source control or chat. Live keys are rejected by the prepared adapter. Do not call the adapter for actual rent until the platform routing and authorization gates are met.
+The backend reads gateway configuration from the process environment; `.env.example` is a blank reference and is not automatically loaded. Follow the [four sandbox requirements and webhook setup](TENANT_BILLING.md#gateway-configuration-and-limits). Never place secrets in React/Vite configuration, request logs, screenshots, source control or chat. Live keys are rejected. Do not route actual rent until live platform routing and acceptance gates are met.
 
-Provider-confirmed conditional holds, release on contract signing, leases and refunds are future work. There is **no 48-hour refund guarantee**. A signature or owner confirmation does not establish property authenticity or safety. Weekly vacancy check-ins, 14-day listing expiry, bedspaces, submeter calculations, tenant bills, automated reminders and paid featured placement are not implemented.
+Provider-confirmed conditional holds, release on contract signing, leases and refunds are future work. There is **no 48-hour refund guarantee**. A signature or owner confirmation does not establish property authenticity or safety. Weekly vacancy check-ins, 14-day listing expiry, bedspaces, submeter calculations, recurring bill generation, automated reminders and paid featured placement are not implemented. Private owner-published tenant statements are implemented.
 
 ## Earlier manual commission examples
 

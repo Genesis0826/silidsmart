@@ -48,6 +48,7 @@ export function preparePitchFixtures(db, auth, commissions, { restore = false } 
   db.exec('BEGIN;');
   try {
     if (restore && existingOwner) {
+      db.prepare('DELETE FROM tenant_billing_links WHERE owner_id = ?').run(PITCH_OWNER_ID);
       db.prepare('DELETE FROM commission_statements WHERE owner_id = ?').run(PITCH_OWNER_ID);
       db.prepare('DELETE FROM units WHERE property_id = ?').run(PITCH_PROPERTY_ID);
       db.prepare('DELETE FROM properties WHERE id = ?').run(PITCH_PROPERTY_ID);

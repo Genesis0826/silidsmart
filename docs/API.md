@@ -1,13 +1,17 @@
 # API Documentation & Contracts
 
-## Latest payment preparation and legacy compatibility
+## Tenant statement API and sandbox checkout
+
+See [Tenant Billing API table](TENANT_BILLING.md#api-and-persistence) for owner invitation/publication, renter acceptance/private statements, checkout, reconciliation and signed webhook contracts. These routes derive identities from server sessions. The provider route verifies the exact raw body before accepting a test event. All are no-store; no public bill lookup exists. Live checkout/payouts stay disabled.
+
+## Payment quotes and legacy compatibility
 
 - Owner-only `GET /api/owner/payment-readiness` returns provider setup status and checkoutEnabled false, without exposing keys.
 - Owner-only `POST /api/owner/payment-quotes`: JSON kind (Monthly rent, Short stay, Utilities), channel (Planned online checkout or Cash or external transfer), positive rentPhp with two decimals, and 1–29 integer nights for Short stay. Returns a hypothetical 3%/5%/0% proposal, chargedPhp zero, no persistence or provider call. Invalid input returns 400; role/session checks remain 401/403.
 - `subscription` is a compatibility field: monthlyFeePhp is now zero for all counts, with paymentPolicy metadata. No capacity tier is charged.
-- Utility types now include Wi-Fi. All utility data remains owner-private and manually recorded.
+- Utility types include Wi-Fi. Owner ledgers stay private; only explicit statement snapshots are shared with the linked recipient. Issued sources are locked until voided/settled.
 - Commission statement/remittance POST/PATCH routes documented below are historical contracts, now read-only by default with `409 LEGACY_COMMISSION_READ_ONLY`. GET snapshots remain available. Test-only server construction may opt into the old contract to verify archived workflows; production startup does not.
-- There is no application checkout, provider webhook or payout endpoint. Do not send secrets or real payment data to quote routes. See [payment pilot](PAYMENT_PILOT.md).
+- Tenant statement checkout/webhooks exist in sandbox only. There is no live payment or payout endpoint. Do not send secrets or real payment data to quote routes. See [payment pilot](PAYMENT_PILOT.md).
 
 ## Overview
 Defines the SilidSmart B2B2C REST API endpoints (`silidsmart/backend/src/server.mjs`), request/response formats, error codes, and the strict Public vs. Private data serialization boundary.
