@@ -6,8 +6,13 @@ import {
 } from 'lucide-react';
 import { downloadCsv } from '../utils/exportCsv';
 import { ownerPlan } from '../utils/pricing';
+import { CommissionStatements } from './CommissionStatements';
+import type { CommissionStatement, CommissionReviewInput } from '../types';
 
 interface AdminViewProps {
+  commissionStatements: CommissionStatement[];
+  onReviewRemittance: (id: string, input: CommissionReviewInput) => Promise<boolean>;
+  onVoidCommission: (id: string, reason: string) => Promise<boolean>;
   owners: Owner[];
   properties: Property[];
   units: Unit[];
@@ -21,6 +26,7 @@ interface AdminViewProps {
 }
 
 export const AdminView = ({
+  commissionStatements, onReviewRemittance, onVoidCommission,
   owners,
   properties,
   units,
@@ -32,7 +38,7 @@ export const AdminView = ({
   onResolveReport,
   onTogglePublishUnit,
 }: AdminViewProps) => {
-  const [activeTab, setActiveTab] = useState<'idReviews' | 'analytics' | 'reports' | 'privacy' | 'telemetry'>('idReviews');
+  const [activeTab, setActiveTab] = useState<'idReviews' | 'analytics' | 'reports' | 'privacy' | 'telemetry' | 'commissions'>('idReviews');
   const [reportFilter, setReportFilter] = useState<'all' | 'Pending' | 'Resolved'>('all');
   const [idFilter, setIdFilter] = useState<'all' | IDReviewStatus>('all');
   const [privacyStatusFilter, setPrivacyStatusFilter] = useState<'All' | 'Occupied' | 'Vacant'>('All');
@@ -306,6 +312,9 @@ export const AdminView = ({
                 <span>Privacy Guardrail Audit</span>
               </button>
 
+              <button onClick={() => setActiveTab('commissions')} className={`saas-nav-item ${activeTab === 'commissions' ? 'active' : ''}`}>
+                <span>Commission Remittances</span>
+              </button>
               <button
                 onClick={() => setActiveTab('telemetry')}
                 className={`saas-nav-item ${activeTab === 'telemetry' ? 'active' : ''}`}
@@ -318,6 +327,7 @@ export const AdminView = ({
 
           {/* MAIN GOVERNANCE CONTENT */}
           <div key={activeTab} className="anim-view-enter">
+            {activeTab === 'commissions' && <CommissionStatements statements={commissionStatements} owners={owners} onReview={onReviewRemittance} onVoid={onVoidCommission} />}
             {/* TAB 1: OWNER ID REVIEWS */}
             {activeTab === 'idReviews' && (
               <div>

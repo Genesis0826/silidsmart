@@ -183,6 +183,31 @@ export function createAppServer(service = createSilidSmartService()) {
         return;
       }
 
+      // Manual platform-fee collection records. No provider or funds movement.
+      if (method === 'POST' && pathname === '/api/owner/commission-statements') {
+        const body = await readJsonBody(req);
+        service.issueCommissionStatement(user.ownerId, body.billingMonth);
+        sendJson(res, 201, ownerWorkspace()); return;
+      }
+      const remittanceMatch = pathname.match(/^\/api\/owner\/commission-statements\/([^/]+)\/remittances$/);
+      if (method === 'POST' && remittanceMatch) {
+        const id = decodeURIComponent(remittanceMatch[1]);
+        assertOwned('commissionStatements', id);
+        service.submitCommissionRemittance(id, await readJsonBody(req));
+        sendJson(res, 201, ownerWorkspace()); return;
+      }
+      const reviewRemittanceMatch = pathname.match(/^\/api\/admin\/commission-remittances\/([^/]+)$/);
+      if (method === 'PATCH' && reviewRemittanceMatch) {
+        service.reviewCommissionRemittance(decodeURIComponent(reviewRemittanceMatch[1]), await readJsonBody(req), user.id);
+        sendJson(res, 200, service.getBootstrapState()); return;
+      }
+      const voidStatementMatch = pathname.match(/^\/api\/admin\/commission-statements\/([^/]+)\/void$/);
+      if (method === 'POST' && voidStatementMatch) {
+        const body = await readJsonBody(req);
+        service.voidCommissionStatement(decodeURIComponent(voidStatementMatch[1]), body.reason);
+        sendJson(res, 200, service.getBootstrapState()); return;
+      }
+
       // Private manual short-stay ledger; these routes do not process payments.
       if (method === 'POST' && pathname === '/api/owner/short-stays') {
         const body = await readJsonBody(req);

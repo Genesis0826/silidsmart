@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAuthStore } from './auth.mjs';
 import { randomUUID } from 'node:crypto';
+import { createCommissionStore, manilaToday } from './commissions.mjs';
 import {
   seedOwners,
   seedProperties,
@@ -177,14 +178,27 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     } catch (error) { db.exec('ROLLBACK;'); throw error; }
   }
 
+  const commissionMigration = '005_monthly_commissions.sql';
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version = ?').get(commissionMigration)) {
+    db.exec('BEGIN;');
+    try {
+      db.exec(fs.readFileSync(path.join(__dirname, '..', 'migrations', commissionMigration), 'utf8'));
+      insertMigration.run(commissionMigration, new Date().toISOString());
+      db.exec('COMMIT;');
+    } catch (error) { db.exec('ROLLBACK;'); throw error; }
+  }
+  const commissions = createCommissionStore(db, { ValidationError, NotFoundError, isIsoDate });
+
   function populateSeedData() {
     db.exec('BEGIN TRANSACTION;');
     try {
       db.exec(`
         DELETE FROM system_events;
         DELETE FROM listing_reports;
-        DELETE FROM inquiries;
+        DELETE FROM commission_remittances;
+        DELETE FROM commission_statements;
         DELETE FROM short_stay_records;
+        DELETE FROM inquiries;
         DELETE FROM utility_records;
         DELETE FROM rent_records;
         DELETE FROM tenants;
@@ -428,6 +442,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     commissionPhp: row.status === 'Completed' && row.source === 'SilidSmart'
       ? Math.round(row.rent_total_centavos * row.commission_percent / 100) / 100 : 0,
     recordedAt: row.recorded_at,
+    inquiryId: row.inquiry_id ?? null,
   });
 
   const mapUtility = (row) => ({
@@ -636,6 +651,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         utilityRecords: db.prepare(`SELECT r.* FROM utility_records r
           JOIN units u ON u.id = r.unit_id JOIN properties p ON p.id = u.property_id
           WHERE p.owner_id = ? ORDER BY r.billing_month DESC, r.recorded_at DESC`).all(ownerId).map(mapUtility),
+        commissionStatements: commissions.list(ownerId),
       };
     },
 
@@ -658,6 +674,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         inquiries,
         listingReports,
         systemEvents,
+        commissionStatements: commissions.list(),
       };
     },
 
@@ -677,10 +694,16 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       return calculateBmcSubscriptionTier(countRow?.count || 0);
     },
 
-    recordShortStay({ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source }) {
+    issueCommissionStatement: (ownerId, month) => commissions.issue(ownerId, month),
+    submitCommissionRemittance: (id, input) => commissions.submit(id, input),
+    reviewCommissionRemittance: (id, input, adminId) => commissions.review(id, input, adminId),
+    voidCommissionStatement: (id, reason) => commissions.void(id, reason),
+
+    recordShortStay({ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source, inquiryId = null }) {
       if (!isIsoDate(checkInDate) || !isIsoDate(checkOutDate) || checkOutDate <= checkInDate) {
         throw new ValidationError('INVALID_STAY_DATES', 'Use valid dates with checkout after check-in.');
       }
+      if (checkOutDate > manilaToday()) throw new ValidationError('STAY_NOT_COMPLETED', 'Completed stays cannot have a future checkout date.');
       if (typeof guestName !== 'string' || !guestName.trim() || guestName.trim().length > 120) {
         throw new ValidationError('INVALID_GUEST_NAME', 'Enter a guest name of 1–120 characters.');
       }
@@ -695,11 +718,17 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       if (!db.prepare('SELECT id FROM units WHERE id = ?').get(unitId)) {
         throw new NotFoundError('UNIT_NOT_FOUND', 'Unit not found.');
       }
+      if (inquiryId !== null && (typeof inquiryId !== 'string' || source !== 'SilidSmart'
+          || !db.prepare('SELECT id FROM inquiries WHERE id = ? AND unit_id = ?').get(inquiryId, unitId))) {
+        throw new ValidationError('INVALID_STAY_INQUIRY', 'Link a SilidSmart inquiry for this same unit, or leave the link empty. The link does not verify the stay.');
+      }
+      const owner = db.prepare('SELECT p.owner_id FROM units u JOIN properties p ON p.id = u.property_id WHERE u.id = ?').get(unitId);
+      commissions.assertPeriodOpen(owner.owner_id, checkOutDate);
       // This is an owner-declared completed stay, not a reservation or payment receipt.
       db.prepare(`INSERT INTO short_stay_records
-        (id, unit_id, guest_name, check_in_date, check_out_date, rent_total_centavos, source, status, commission_percent, recorded_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'Completed', 5, ?)`)
-        .run(randomUUID(), unitId, guestName.trim(), checkInDate, checkOutDate, centavos, source, new Date().toISOString());
+        (id, unit_id, guest_name, check_in_date, check_out_date, rent_total_centavos, source, status, commission_percent, recorded_at, inquiry_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Completed', 5, ?, ?)`)
+        .run(randomUUID(), unitId, guestName.trim(), checkInDate, checkOutDate, centavos, source, new Date().toISOString(), inquiryId);
       return { ok: true };
     },
 
@@ -707,6 +736,9 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
       if (!['Completed', 'Cancelled'].includes(status)) {
         throw new ValidationError('INVALID_STAY_STATUS', 'Status must be Completed or Cancelled.');
       }
+      const stay = db.prepare(`SELECT s.check_out_date, p.owner_id FROM short_stay_records s JOIN units u ON u.id = s.unit_id
+        JOIN properties p ON p.id = u.property_id WHERE s.id = ?`).get(recordId);
+      if (stay) commissions.assertPeriodOpen(stay.owner_id, stay.check_out_date);
       const result = db.prepare('UPDATE short_stay_records SET status = ? WHERE id = ?').run(status, recordId);
       if (!result.changes) throw new NotFoundError('STAY_NOT_FOUND', 'Short-stay record not found.');
       return { ok: true };

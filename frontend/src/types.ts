@@ -122,10 +122,50 @@ export interface ShortStay {
   commissionPercent: number;
   commissionPhp: number;
   recordedAt: string;
+  inquiryId?: string | null;
 }
 
 export type ShortStayInput = Pick<ShortStay,
-  'unitId' | 'guestName' | 'checkInDate' | 'checkOutDate' | 'rentTotalPhp' | 'source'>;
+  'unitId' | 'guestName' | 'checkInDate' | 'checkOutDate' | 'rentTotalPhp' | 'source' | 'inquiryId'>;
+
+export interface CommissionRemittanceInput {
+  amountPhp: number;
+  method: 'Bank transfer' | 'GCash';
+  reference: string;
+  paymentDate: string;
+}
+export interface CommissionReviewInput {
+  decision: 'Verified' | 'Rejected';
+  note: string;
+  receivedDate: string;
+  fundsReceived: boolean;
+}
+export interface CommissionRemittance extends CommissionRemittanceInput {
+  id: string;
+  status: 'Submitted' | 'Rejected' | 'Verified';
+  submittedAt: string;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  receivedDate: string | null;
+}
+export interface CommissionStatement {
+  id: string;
+  ownerId: string;
+  billingMonth: string;
+  version: number;
+  state: 'Issued' | 'Void';
+  rentTotalPhp: number;
+  commissionPhp: number;
+  outstandingPhp: number;
+  dueDate: string;
+  issuedAt: string;
+  voidReason: string | null;
+  paymentStatus: 'Void' | 'No commission' | 'Verified' | 'Under review' | 'Overdue' | 'Due';
+  items: Array<Pick<ShortStay, 'checkInDate' | 'checkOutDate' | 'rentTotalPhp' | 'source' | 'status' | 'commissionPercent' | 'commissionPhp' | 'inquiryId'> & {
+    stayId: string; unitLabel: string; propertyName: string;
+  }>;
+  remittances: CommissionRemittance[];
+}
 
 export interface ListingReport {
   id: string;

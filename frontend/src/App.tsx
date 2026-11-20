@@ -17,6 +17,9 @@ import type {
   UtilityRecord,
   UtilityInput,
   DirectorySettings,
+  CommissionStatement,
+  CommissionRemittanceInput,
+  CommissionReviewInput,
 } from './types';
 import { initialUsers } from './seedData';
 import { RoleSwitcher } from './components/RoleSwitcher';
@@ -43,9 +46,11 @@ interface OwnerWorkspacePayload {
   inquiries: Inquiry[];
   shortStays: ShortStay[];
   utilityRecords: UtilityRecord[];
+  commissionStatements: CommissionStatement[];
 }
 
 interface BootstrapPayload {
+  commissionStatements: CommissionStatement[];
   owners: Owner[];
   properties: Property[];
   units: Unit[];
@@ -88,6 +93,7 @@ export function App() {
   const [rentRecords, setRentRecords] = useState<RentRecord[]>([]);
   const [shortStays, setShortStays] = useState<ShortStay[]>([]);
   const [utilityRecords, setUtilityRecords] = useState<UtilityRecord[]>([]);
+  const [commissionStatements, setCommissionStatements] = useState<CommissionStatement[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [listingReports, setListingReports] = useState<ListingReport[]>([]);
   const [systemEvents, setSystemEvents] = useState<SystemEvent[]>([]);
@@ -129,6 +135,7 @@ export function App() {
         setRentRecords([]);
         setShortStays([]);
         setUtilityRecords([]);
+        setCommissionStatements([]);
         setListingReports([]);
         setSystemEvents([]);
       } else if (role === 'owner') {
@@ -140,11 +147,13 @@ export function App() {
         setRentRecords(data.rentRecords);
         setShortStays(data.shortStays);
         setUtilityRecords(data.utilityRecords);
+        setCommissionStatements(data.commissionStatements);
         setInquiries(data.inquiries);
         setListingReports([]);
         setSystemEvents([]);
       } else {
         const data = payload as BootstrapPayload;
+        setCommissionStatements(data.commissionStatements);
         setShortStays([]);
         setUtilityRecords([]);
         setOwners(data.owners);
@@ -218,6 +227,7 @@ export function App() {
           setRentRecords([]);
           setShortStays([]);
           setUtilityRecords([]);
+          setCommissionStatements([]);
           setListingReports([]);
           setSystemEvents([]);
         } else if (currentRole === 'owner') {
@@ -229,11 +239,13 @@ export function App() {
           setRentRecords(data.rentRecords);
           setShortStays(data.shortStays);
           setUtilityRecords(data.utilityRecords);
+          setCommissionStatements(data.commissionStatements);
           setInquiries(data.inquiries);
           setListingReports([]);
           setSystemEvents([]);
         } else {
           const data = payload as BootstrapPayload;
+          setCommissionStatements(data.commissionStatements);
           setShortStays([]);
           setUtilityRecords([]);
           setOwners(data.owners);
@@ -323,6 +335,7 @@ export function App() {
     setRentRecords([]); setInquiries([]); setListingReports([]); setSystemEvents([]);
     setShortStays([]);
     setUtilityRecords([]);
+    setCommissionStatements([]);
   };
 
   const handleLogin = async (user: AuthUser, password = 'password123', register = false): Promise<boolean> => {
@@ -454,6 +467,20 @@ export function App() {
   };
 
   // 4. Renter submits viewing inquiry
+  const handleIssueCommission = async (billingMonth: string) => (await executeMutation('/api/owner/commission-statements', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ billingMonth }),
+  })).ok;
+  const handleSubmitRemittance = async (id: string, input: CommissionRemittanceInput) => (await executeMutation(`/api/owner/commission-statements/${encodeURIComponent(id)}/remittances`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  })).ok;
+  const handleReviewRemittance = async (id: string, input: CommissionReviewInput) => (await executeMutation(`/api/admin/commission-remittances/${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
+  })).ok;
+  const handleVoidCommission = async (id: string, reason: string) => (await executeMutation(`/api/admin/commission-statements/${encodeURIComponent(id)}/void`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }),
+  })).ok;
+
+  // Renter submits viewing inquiry
   const handleSubmitInquiry = async (
     inquiryData: Omit<Inquiry, 'id' | 'status' | 'submittedAt'>
   ): Promise<boolean> => {
@@ -663,6 +690,9 @@ export function App() {
             onUpdateRentStatus={handleUpdateRentStatus}
             onRespondInquiry={handleRespondInquiry}
             shortStays={shortStays}
+            commissionStatements={commissionStatements}
+            onIssueCommission={handleIssueCommission}
+            onSubmitRemittance={handleSubmitRemittance}
             onRecordShortStay={handleRecordShortStay}
             onUpdateShortStay={handleUpdateShortStay}
             utilityRecords={utilityRecords}
@@ -673,6 +703,9 @@ export function App() {
 
         {!loadError && hasLoadedRole && currentRole === 'admin' && currentUser?.role === 'admin' && (
           <AdminView
+            commissionStatements={commissionStatements}
+            onReviewRemittance={handleReviewRemittance}
+            onVoidCommission={handleVoidCommission}
             owners={owners}
             properties={properties}
             units={units}

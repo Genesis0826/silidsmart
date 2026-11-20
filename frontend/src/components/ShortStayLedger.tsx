@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Property, Unit, ShortStay, ShortStayInput } from '../types';
+import type { Property, Unit, ShortStay, ShortStayInput, Inquiry, CommissionStatement } from '../types';
 import { SHORT_STAY_COMMISSION_PERCENT } from '../utils/pricing';
 import './PrivateLedger.css';
 
@@ -7,6 +7,8 @@ interface Props {
   units: Unit[];
   properties: Property[];
   stays: ShortStay[];
+  inquiries: Inquiry[];
+  statements: CommissionStatement[];
   onRecord: (stay: ShortStayInput) => Promise<boolean>;
   onUpdateStatus: (id: string, status: ShortStay['status']) => Promise<boolean>;
 }
@@ -15,7 +17,7 @@ const pesos = (amount: number) => amount.toLocaleString('en-PH', {
   style: 'currency', currency: 'PHP', minimumFractionDigits: 2,
 });
 
-export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateStatus }: Props) {
+export function ShortStayLedger({ units, properties, stays, inquiries, statements, onRecord, onUpdateStatus }: Props) {
   const [unitId, setUnitId] = useState('');
   const [guestName, setGuestName] = useState('');
   const [checkInDate, setCheckIn] = useState('');
@@ -23,6 +25,7 @@ export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateSt
   const [rent, setRent] = useState('');
   const [source, setSource] = useState<ShortStayInput['source']>('SilidSmart');
   const [busy, setBusy] = useState(false);
+  const [inquiryId, setInquiryId] = useState('');
   const [notice, setNotice] = useState('');
   const selectedUnit = units.some((unit) => unit.id === unitId) ? unitId : units[0]?.id || '';
   const totalCommission = stays.reduce((sum, stay) => sum + Math.round(stay.commissionPhp * 100), 0) / 100;
@@ -33,10 +36,10 @@ export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateSt
     <section className="card" style={{ padding: '24px' }} aria-labelledby="short-stay-title">
       <h2 id="short-stay-title" style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Short Stays & Commission</h2>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
-        Record completed stays arranged directly with guests. The proposed owner-paid fee is 5% of short-stay rent sourced through SilidSmart, on every plan including Free.
+        Record completed short stays arranged directly with guests. The proposed owner-paid fee is 5% of short-stay rent sourced through SilidSmart, on every plan including Free. Long-term rentals belong in the monthly Rent Ledger and have no commission. Utilities also have no commission.
       </p>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
-        Manual records only. SilidSmart does not collect, deduct, remit, or verify rent or commission payments.
+        Manual stay records only. Rent is paid directly to the owner. Use Monthly Commission for statements and external remittance reports, reviewed manually by staff. No online payments are processed.
         Refundable deposits, taxes, and other charges are excluded. Cancelled stays and other-source stays have no commission.
         This ledger does not reserve dates, check calendar availability, or change occupancy; update unit occupancy separately.
       </p>
@@ -50,9 +53,10 @@ export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateSt
           if (busy) return;
           setNotice(''); setBusy(true);
           try {
-            const ok = await onRecord({ unitId: selectedUnit, guestName, checkInDate, checkOutDate, rentTotalPhp: Number(rent), source });
+            const ok = await onRecord({ unitId: selectedUnit, guestName, checkInDate, checkOutDate, rentTotalPhp: Number(rent), source, inquiryId: source === 'SilidSmart' ? inquiryId || null : null });
             if (ok) {
               setGuestName(''); setRent(''); setCheckIn(''); setCheckOut('');
+              setInquiryId('');
               setNotice('Completed stay recorded. Commission calculated; no payment was processed.');
             }
           } finally { setBusy(false); }
@@ -61,7 +65,7 @@ export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateSt
             <legend style={{ fontWeight: 700, marginBottom: '12px' }}>Record a completed short stay</legend>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '12px' }}>
               <label htmlFor="stay-unit">Unit
-                <select id="stay-unit" className="select" value={selectedUnit} onChange={(event) => setUnitId(event.target.value)}>
+                <select id="stay-unit" className="select" value={selectedUnit} onChange={(event) => { setUnitId(event.target.value); setInquiryId(''); }}>
                   {units.map((unit) => <option key={unit.id} value={unit.id}>
                     {properties.find((property) => property.id === unit.propertyId)?.name} · {unit.unitLabel}
                   </option>)}
@@ -85,6 +89,12 @@ export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateSt
                   <option value="Other">Other source (no commission)</option>
                 </select>
               </label>
+              {source === 'SilidSmart' && <label htmlFor="stay-inquiry">Linked inquiry (optional)
+                <select id="stay-inquiry" className="select" value={inquiryId} onChange={e => setInquiryId(e.target.value)}>
+                  <option value="">No inquiry linked</option>
+                  {inquiries.filter(i => i.unitId === selectedUnit).map(i => <option key={i.id} value={i.id}>{i.renterName} · {i.submittedAt} · {i.status}</option>)}
+                </select><small>A link supports traceability; it does not verify completion or rent.</small>
+              </label>}
             </div>
             <p className="mono-num" style={{ margin: '16px 0' }}>Commission preview: <strong>{pesos(Number.isFinite(preview) ? preview : 0)}</strong></p>
             <button type="submit" className="btn btn-primary">{busy ? 'Saving…' : 'Record completed stay'}</button>
@@ -102,14 +112,14 @@ export function ShortStayLedger({ units, properties, stays, onRecord, onUpdateSt
               <td>{units.find((unit) => unit.id === stay.unitId)?.unitLabel}<br />{stay.guestName}</td>
               <td className="mono-num">{stay.checkInDate}<br />to {stay.checkOutDate}</td>
               <td className="mono-num">{pesos(stay.rentTotalPhp)}</td>
-              <td>{stay.source}</td>
+              <td>{stay.source}<br /><small>{stay.inquiryId ? `Inquiry: ${stay.inquiryId}` : 'Not linked'}</small></td>
               <td className="mono-num">{pesos(stay.commissionPhp)}<br /><small>{stay.commissionPercent}% policy</small></td>
               <td>{stay.status}</td>
-              <td><button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={async () => {
+              <td>{statements.some(s => s.state === 'Issued' && stay.checkOutDate.startsWith(s.billingMonth)) ? <small>Statement issued<br />Month locked</small> : <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={async () => {
                 setBusy(true); setNotice('');
                 try { await onUpdateStatus(stay.id, stay.status === 'Completed' ? 'Cancelled' : 'Completed'); }
                 finally { setBusy(false); }
-              }}>{stay.status === 'Completed' ? 'Mark cancelled' : 'Restore completed'}</button></td>
+              }}>{stay.status === 'Completed' ? 'Mark cancelled' : 'Restore completed'}</button>}</td>
             </tr>)}
           </tbody>
         </table>

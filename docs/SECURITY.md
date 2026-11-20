@@ -38,10 +38,16 @@ Defines the B2B2C privacy isolation boundaries, role-scoped serialization contra
 
 ## Short-stay ledger boundary — November 20, 2026
 
-Short-stay guest and commission records are private. Reads join unit/property ownership; writes require an owner session and portfolio membership. Guests/renters cannot use the new routes; another owner cannot read or change a stay. Public endpoints never query these entries, and React clears them on role/account changes. The server validates dates, rent bounds/precision, guest name, source and status, and sets 5% itself. Source, completion and payment remain owner-reported, so this is not payment verification, an enforceable billing system or fraud-resistant revenue evidence.
+Short-stay guest and commission records are private. Reads join unit/property ownership; writes require an owner session and membership. Guests/renters and other owners cannot access them. Public endpoints never query these entries, and React clears them on role/account changes. The server validates dates (including no future checkout), money precision/bounds, guest, source/status, optional same-unit inquiry, and fixes 5%. Source/completion/rent remain owner-reported. The separate commission review below records staff receipt assertions, without independently verifying stays or integrating with a provider.
 
 ## Directory and utility boundaries — November 20, 2026
 
 The owner directory endpoint validates publication/date and portfolio ownership. Changing occupancy preserves publication; hidden inventory is not republished automatically. Expected availability is a separate owner-provided public field, never inferred from a tenant's move-in date, lease or notes. Past/future estimates do not change status or permit an occupied-unit inquiry.
 
 Utility reads join unit/property ownership, while writes check owner role and membership. Bill identity cannot be reassigned during corrections. Server validation covers utility/month, money bounds/precision, real due/payment dates, status consistency, reference length and duplicate identity. Owner responses include only that portfolio's bills. Public responses and admin bootstrap omit them; React clears utility state on sign-out/role changes. Manual reports are not independently verified payments.
+
+## Monthly commission records — November 20, 2026
+
+Commission statements/remittances require an owner session and exact portfolio membership; client-supplied owner, fee or status cannot set identity/totals/verification. Admin sessions alone can review reports or void eligible statements. Admin bootstrap intentionally exposes statement line snapshots without guest names/contacts and remittance references for reconciliation; raw short-stay and utility tables remain omitted. Public endpoints return none, and browser state is cleared on sign-out/role changes.
+
+Immutable issued snapshots and period locks prevent silent changes; void/reissue and rejected reports retain history. Pending reports remain outstanding. Exact amount, date/reference validation, unique active references and one open report per statement guard common mistakes. Staff verification requires an explicit actual-funds confirmation, real received date and review note, and stores reviewer/time. The system does not inspect bank statements, verify receipt images, collect funds or establish fraud-resistant attribution. An administrator can still assert receipt incorrectly; production audit/control requirements remain unvalidated. Do not record real banking details or use sample verification as proof of revenue.

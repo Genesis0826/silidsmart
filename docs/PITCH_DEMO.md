@@ -39,9 +39,21 @@ Avoid spending the presentation opening every tab. Keep admin moderation as an o
 
 ### 4. Business model — 40 seconds
 
-“Our proposed model keeps renter browsing and inquiries free. Owners have no monthly fee for one to four units; five to ten costs ₱99, eleven to twenty-five ₱199, and twenty-six to fifty ₱349. A separate 5% owner-paid fee is calculated on owner-reported completed SilidSmart short stays. The prototype does not collect or verify rent, subscriptions, utilities or commissions.”
+“Our proposed model keeps renter browsing and inquiries free. Owners have no monthly fee for one to four units; five to ten costs ₱99, eleven to twenty-five ₱199, and twenty-six to fifty ₱349. A separate 5% owner-paid fee applies only to completed SilidSmart-sourced short stays. Owners remit monthly outside the app and staff review receipt manually. Long-term rent and utilities have no commission. There is no payment gateway.”
 
 If asked: proposed tiers are 1–4 units Free, 5–10 at ₱99/month, 11–25 at ₱199/month, 26–50 at ₱349/month, and a custom quote above 50. All plans calculate a separate 5% owner-paid fee on owner-reported completed SilidSmart-sourced short stays. Owners can demonstrate the private Short Stays & Commission ledger; it does not reserve dates or collect payments. Pricing is a proposal to validate, not demonstrated willingness to pay or collected revenue.
+
+## Optional monthly commission Q&A demonstration
+
+Use sample records only. No actual transfer, collection destination or provider is configured. Prefer a separate demo database/session if preserving an existing portfolio is important; never reset existing data merely to rehearse this flow.
+
+1. As Maria, open **Short Stays & Commission**. Record a sample completed stay, October 1–3, 2026, accommodation rent PHP 10,000, source SilidSmart. Optionally link an existing inquiry for the same unit. Explain that completion/source/rent are owner reports; a link is not verification.
+2. Open **Monthly Commission**, choose October 2026 and issue the statement. It shows PHP 500 (or the total including any other recorded October entries), due November 10. On November 20, an unpaid historical example correctly shows Overdue. November remains a preview until December 1. Issuing locks the checkout month; a retry does not create another charge.
+3. Choose **Report external remittance** and enter sample transfer details for the exact statement amount. Show **Under review**, with the amount still outstanding. Explain that the tenant paid rent to the owner/authorized manager and the owner separately remits platform commission.
+4. Sign out and enter **Platform Review Lead → Commission Remittances**. Demonstrate returning an unmatched report with a reason, or simulate staff receipt review with a clear sample note. In real operation, staff must match actual received funds, amount/date/reference before confirming. No bank/provider verification happens here.
+5. Show the retained attempt history, verified zero outstanding and locked checkout month. Admin can void an unpaid statement without pending/verified reports for correction; a new version preserves the previous snapshot. Verified statements cannot be edited/voided in this prototype.
+
+**Utility explanation:** Electricity/Water records are owner-only and manually marked Paid/Due/Overdue. A private tenant bill view, consolidated rent-plus-utilities total, Internet bills, owner payment QR, recurring rent generation and payment gateway are not implemented. Do not claim utility tracking is unique. See [business definitions and official evidence](BUSINESS_DEFINITIONS.md).
 
 ### 5. Prototype status and next step — 45 seconds
 

@@ -9,8 +9,13 @@ import { ownerPlan } from '../utils/pricing';
 import { ShortStayLedger } from './ShortStayLedger';
 import { UtilityTracker } from './UtilityTracker';
 import { UnitDirectorySettings } from './UnitDirectorySettings';
+import { CommissionStatements } from './CommissionStatements';
+import type { CommissionStatement, CommissionRemittanceInput } from '../types';
 
 interface OwnerViewProps {
+  commissionStatements: CommissionStatement[];
+  onIssueCommission: (month: string) => Promise<boolean>;
+  onSubmitRemittance: (id: string, input: CommissionRemittanceInput) => Promise<boolean>;
   owner: Owner;
   properties: Property[];
   units: Unit[];
@@ -34,6 +39,7 @@ interface OwnerViewProps {
 }
 
 export const OwnerView = ({
+  commissionStatements, onIssueCommission, onSubmitRemittance,
   owner,
   properties,
   units,
@@ -51,7 +57,7 @@ export const OwnerView = ({
   onUpdateRentStatus,
   onRespondInquiry,
 }: OwnerViewProps) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays' | 'utilities'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays' | 'utilities' | 'commissions'>('inventory');
   const [directoryUnit, setDirectoryUnit] = useState<Unit | null>(null);
   const [tableDensity, setTableDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [copiedPostToast, setCopiedPostToast] = useState<string | null>(null);
@@ -432,6 +438,9 @@ export const OwnerView = ({
                 {pendingInquiriesCount > 0 && <span className="badge badge-verified mono-num">{pendingInquiriesCount}</span>}
               </button>
 
+              <button onClick={() => setActiveTab('commissions')} className={`saas-nav-item ${activeTab === 'commissions' ? 'active' : ''}`}>
+                <span>Monthly Commission</span>
+              </button>
               <button onClick={() => setActiveTab('shortStays')}
                 className={`saas-nav-item ${activeTab === 'shortStays' ? 'active' : ''}`}>
                 <span>Short Stays & Commission</span>
@@ -1538,9 +1547,10 @@ export const OwnerView = ({
 
             {/* TAB 6: BMC SUBSCRIPTION PLAN & TIER BREAKDOWN */}
             {activeTab === 'shortStays' && (
-              <ShortStayLedger units={ownerUnits} properties={ownerProperties} stays={shortStays}
+              <ShortStayLedger units={ownerUnits} properties={ownerProperties} stays={shortStays} inquiries={inquiries} statements={commissionStatements}
                 onRecord={onRecordShortStay} onUpdateStatus={onUpdateShortStay} />
             )}
+            {activeTab === 'commissions' && <CommissionStatements statements={commissionStatements} stays={shortStays} onIssue={onIssueCommission} onSubmit={onSubmitRemittance} />}
             {activeTab === 'utilities' && (
               <UtilityTracker units={ownerUnits} properties={ownerProperties} records={utilityRecords} onSave={onSaveUtility} />
             )}
@@ -1583,7 +1593,7 @@ export const OwnerView = ({
                 </div>
 
                 <p style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Proposed prices. No subscription or commission is collected in this prototype. Short-stay rent excludes refundable deposits, taxes, and other charges; cancelled stays have no commission. Payment and stay completion are owner-reported.
+                  Proposed prices. Rent and subscriptions are not processed here. Monthly Commission records separate external remittance reports for staff review. Long-term rent and utilities have no commission. The short-stay base excludes deposits, taxes and other charges; cancelled and other-source stays have no fee. Stay completion and source remain owner-reported.
                 </p>
                 {/* Capacity-based plans share the same core tools. */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>

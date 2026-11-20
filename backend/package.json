@@ -6,6 +6,6 @@
   "scripts": {
     "start": "node --no-warnings src/server.mjs",
     "dev": "node --no-warnings --watch src/server.mjs",
-    "test": "node --no-warnings --test tests/api.test.mjs"
+    "test": "node --no-warnings --test"
   }
 }

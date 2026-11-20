@@ -49,7 +49,7 @@ Flags an outdated or inaccurate public listing for administrator moderation.
 ## 2. Private B2B Landlord Endpoints (Owner Operations)
 
 ### `GET /api/owner/:ownerId/workspace`
-Returns the isolated workspace for `ownerId`: owner/profile, properties, units, tenants, rentRecords, inquiries, subscription, private shortStays and utilityRecords. Requires an owner session; a different owner ID returns `403 PORTFOLIO_FORBIDDEN`.
+Returns the isolated workspace for `ownerId`: owner/profile, properties, units, tenants, rentRecords, inquiries, subscription, private shortStays, utilityRecords and commissionStatements. Requires an owner session; a different owner ID returns `403 PORTFOLIO_FORBIDDEN`.
 
 ### `GET /api/owner/:ownerId/subscription`
 Calculates the owner's monthly BMC subscription tier from their total managed rooms/units (`1 room or 1 apartment = 1 count`).
@@ -82,14 +82,23 @@ Requires an owner session and a unit in that portfolio. Body: `{ unitId, utility
 Requires the record's owner. Supports partial corrections to `amountPhp`, `dueDate`, `paymentStatus`, `paymentDate`, `reference`, with the same validation. Bill identity (`unitId`, `utilityType`, `billingMonth`) stays fixed and supplied replacements are ignored. When changing Paid to Due/Overdue, explicitly send `paymentDate: null`; the reference is cleared. Returns the owner workspace. Neither utility route processes payments, verifies receipts or changes short-stay commission. Other-portfolio requests fail 403; missing session 401; wrong role 403.
 
 ### `POST /api/owner/short-stays`
-Records an owner-declared completed short stay. Requires the owner role and a unit in that owner's portfolio. Body: `{ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source: 'SilidSmart' | 'Other' }`. Dates must be real ISO dates with checkout after check-in; rent must be positive, at most PHP 10,000,000, with at most two decimal places. The server fixes the rate at 5% and ignores supplied fee/rate/status fields. Source is an owner report, not independently verified attribution.
+Records an owner-declared completed short stay. Requires owner/unit membership. Body: `{ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source: 'SilidSmart' | 'Other', inquiryId?: string | null }`. Real ISO checkout must follow check-in and be no later than today in Manila. Rent must be positive, at most PHP 10,000,000, with at most two decimals. Optional inquiry must match the same unit and SilidSmart source. The server fixes 5% and ignores supplied fee/rate/status fields. Source remains an owner report. New entries in an issued checkout month fail `400 COMMISSION_PERIOD_LOCKED`.
 
 Returns `201` with the owner workspace including `shortStays`. Each entry contains the submitted fields plus `id`, `status`, `commissionPercent`, `commissionPhp`, and `recordedAt`. Only completed SilidSmart-sourced entries calculate commission, rounded to centavos; other-source/cancelled entries calculate zero. This does not change occupancy, create a reservation, verify payment, or collect money.
 
 ### `PATCH /api/owner/short-stays/:recordId`
-Body: `{ status: 'Completed' | 'Cancelled' }`. Requires ownership of the record. Returns the owner workspace. Cancelling waives calculated commission; restoring completion recalculates it at the stored 5% rate. No refund or payment occurs.
+Body: `{ status: 'Completed' | 'Cancelled' }`. Requires ownership and an unlocked checkout month. Returns the owner workspace. Cancelling waives calculated commission; restoring recalculates it at the stored 5% rate. No refund or payment occurs.
 
 Private short-stay entries are omitted from all public endpoints and cleared from client state when leaving the owner workspace.
+
+### `POST /api/owner/commission-statements`
+Owner session required. Body `{ billingMonth: 'YYYY-MM' }`, completed months from January 2000 onward. Uses the signed-in portfolio; client owner/amount fields cannot set access/totals. Issues a fixed snapshot with version, next month's 10th due date, eligible rent, per-stay rounded commission, monthly items and remittance history. Repeated issue returns the active snapshot unchanged. Returns `201` owner workspace with `commissionStatements`. Open/invalid months return `400 INVALID_COMMISSION_MONTH`; empty months have `No commission` status.
+
+### `POST /api/owner/commission-statements/:id/remittances`
+Owner/statement membership required. Body `{ amountPhp, method: 'Bank transfer' | 'GCash', reference, paymentDate: 'YYYY-MM-DD' }`. Exact positive commission amount only; real payment date no later than today in Manila; reference 1–120 characters without controls. One pending/verified report per statement. Method plus case/whitespace-normalized reference cannot repeat across pending/verified reports. Returns `201` owner workspace. Rejected reports remain in history and allow another attempt. Invalid amount/details, duplicates or unpayable/already reported statements return 400; another portfolio returns 403. Submission does not settle the balance.
+
+### Commission statement representation
+`{ id, ownerId, billingMonth, version, state: 'Issued' | 'Void', rentTotalPhp, commissionPhp, outstandingPhp, items, dueDate, issuedAt, voidReason, paymentStatus, remittances }`. Derived status priority: Void, No commission, Verified, Under review, Overdue, Due. Items contain unit/property labels, dates, rent/source/status, inquiry ID and commission, without guest name/contact. Remittances include amount/method/reference/payment date, Submitted/Rejected/Verified, timestamps, review note and receipt date. Subscriptions and utilities are excluded.
 
 ### `PATCH /api/owner/inquiries/:inquiryId`
 Approves or declines a renter viewing request (`Approved`, `Declined`).
@@ -99,10 +108,14 @@ Approves or declines a renter viewing request (`Approved`, `Declined`).
 ## 3. Platform Governance & System Endpoints (Admin)
 
 - `GET /api/bootstrap` — Returns the full admin workspace; requires an administrator session.
+- `PATCH /api/admin/commission-remittances/:id` — Body `{ decision: 'Verified' | 'Rejected', note, receivedDate?, fundsReceived? }`. Submitted reports only. Verification requires `fundsReceived: true`, receipt date between payment date and today, and a note of 1–500 characters. Rejection requires a note and clears receipt date. Stores admin ID/time; returns bootstrap with commissionStatements. No provider query or money movement occurs.
+- `POST /api/admin/commission-statements/:id/void` — Body `{ reason }` (1–500 characters). Only issued statements without pending/verified reports. Preserves snapshot/history, unlocks month and allows the next version. Returns bootstrap. Review/void validation returns 400, wrong role 403, unknown admin record IDs 404.
 - `PATCH /api/admin/owners/:ownerId/id-review` — Updates owner ID verification status (`Pending review`, `ID reviewed`, `Needs correction`).
 - `PATCH /api/admin/reports/:reportId/resolve` — Marks a listing report as `Resolved`.
 - `PATCH /api/admin/units/:unitId/publish` — Toggles listing publication (`published: boolean`).
 - `POST /api/system/reset` — Resets all SQLite tables to the canonical BMC seed state.
+
+Admin bootstrap includes commission snapshots/remittances for staff review, but still omits raw short-stay guest records and utilities. Public endpoints never include commission or remittance data. Owner/admin mutations retain no-store and same-origin/session checks.
 
 ## Prototype account/session contract — November 18, 2026
 
