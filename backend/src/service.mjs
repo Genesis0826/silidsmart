@@ -6,6 +6,7 @@ import { createAuthStore } from './auth.mjs';
 import { randomUUID } from 'node:crypto';
 import { createCommissionStore, manilaToday } from './commissions.mjs';
 import { preparePitchFixtures, PITCH_OWNER_ID } from './pitch-seed.mjs';
+import { PAYMENT_POLICY } from './payments.mjs';
 import {
   seedOwners,
   seedProperties,
@@ -52,9 +53,9 @@ function publicAvailabilityFilter(availability) {
 
 function validateUtility(input) {
   const { unitId, utilityType, billingMonth, amountPhp, dueDate, paymentStatus, paymentDate, reference = '' } = input;
-  if (typeof unitId !== 'string' || !unitId || !['Electricity', 'Water'].includes(utilityType)
+  if (typeof unitId !== 'string' || !unitId || !['Electricity', 'Water', 'Wi-Fi'].includes(utilityType)
       || typeof billingMonth !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(billingMonth)) {
-    throw new ValidationError('INVALID_UTILITY_BILL', 'Choose a unit, Electricity or Water, and a valid billing month.');
+    throw new ValidationError('INVALID_UTILITY_BILL', 'Choose a unit, Electricity, Water or Wi-Fi, and a valid billing month.');
   }
   const centavos = Math.round(amountPhp * 100);
   if (typeof amountPhp !== 'number' || !Number.isFinite(amountPhp) || amountPhp <= 0 || amountPhp > 10_000_000
@@ -71,63 +72,13 @@ function validateUtility(input) {
   return { ...input, centavos, reference: paymentStatus === 'Paid' ? reference.trim() : '', paymentDate: paymentStatus === 'Paid' ? paymentDate : null };
 }
 
+// Retain the legacy response name for existing clients; capacity no longer sets a fee.
 export function calculateBmcSubscriptionTier(unitCount) {
-  const count = Number(unitCount) || 0;
-  const disclaimer = 'The monthly fee depends on the total rooms or apartment units managed';
-  const countingRule = '1 room or 1 apartment = 1 count';
-
-  if (count <= 4) {
-    return {
-      managedUnits: count,
-      tierCode: 'TIER_FREE',
-      tierLabel: 'Free (1–4 units) • ₱0/mo',
-      monthlyFeePhp: 0,
-      customQuote: false,
-      countingRule,
-      disclaimer,
-    };
-  }
-  if (count <= 10) {
-    return {
-      managedUnits: count,
-      tierCode: 'TIER_1_STARTER',
-      tierLabel: 'Tier 1 (5–10 units) • ₱99/mo',
-      monthlyFeePhp: 99,
-      customQuote: false,
-      countingRule,
-      disclaimer,
-    };
-  }
-  if (count <= 25) {
-    return {
-      managedUnits: count,
-      tierCode: 'TIER_2_GROWTH',
-      tierLabel: 'Tier 2 (11–25 units) • ₱199/mo',
-      monthlyFeePhp: 199,
-      customQuote: false,
-      countingRule,
-      disclaimer,
-    };
-  }
-  if (count <= 50) {
-    return {
-      managedUnits: count,
-      tierCode: 'TIER_3_SCALE',
-      tierLabel: 'Tier 3 (26–50 units) • ₱349/mo',
-      monthlyFeePhp: 349,
-      customQuote: false,
-      countingRule,
-      disclaimer,
-    };
-  }
-  return {
-    managedUnits: count,
-    tierCode: 'TIER_CUSTOM_ENTERPRISE',
-    tierLabel: 'Custom Plan (>50 units) • Custom Quote',
-    monthlyFeePhp: null,
-    customQuote: true,
-    countingRule,
-    disclaimer,
+  return { managedUnits: Number(unitCount) || 0, tierCode: 'FREE_MANAGEMENT',
+    tierLabel: 'Free owner management • ₱0/mo', monthlyFeePhp: 0, customQuote: false,
+    countingRule: '1 room or 1 apartment = 1 count',
+    disclaimer: 'Listing and core owner management are free. Proposed online fees are 3% monthly rent and 5% short stays; checkout is not available.',
+    paymentPolicy: PAYMENT_POLICY,
   };
 }
 
@@ -185,6 +136,15 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     try {
       db.exec(fs.readFileSync(path.join(__dirname, '..', 'migrations', commissionMigration), 'utf8'));
       insertMigration.run(commissionMigration, new Date().toISOString());
+      db.exec('COMMIT;');
+    } catch (error) { db.exec('ROLLBACK;'); throw error; }
+  }
+  const wifiMigration = '006_wifi_utility_records.sql';
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version = ?').get(wifiMigration)) {
+    db.exec('BEGIN;');
+    try {
+      db.exec(fs.readFileSync(path.join(__dirname, '..', 'migrations', wifiMigration), 'utf8'));
+      insertMigration.run(wifiMigration, new Date().toISOString());
       db.exec('COMMIT;');
     } catch (error) { db.exec('ROLLBACK;'); throw error; }
   }

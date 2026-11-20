@@ -34,17 +34,17 @@ export function ShortStayLedger({ units, properties, stays, inquiries, statement
 
   return (
     <section className="card" style={{ padding: '24px' }} aria-labelledby="short-stay-title">
-      <h2 id="short-stay-title" style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Short Stays & Commission</h2>
+      <h2 id="short-stay-title" style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Short Stay Records</h2>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
-        Record completed short stays arranged directly with guests. The proposed owner-paid fee is 5% of short-stay rent sourced through SilidSmart, on every plan including Free. Long-term rentals belong in the monthly Rent Ledger and have no commission. Utilities also have no commission.
+        Record completed stays arranged with guests. The proposed future online fee is 5% for SilidSmart short stays of 1–29 nights and 3% for monthly accommodation rent. Management is free. Utilities and cash/external payments have no commission under the new proposal.
       </p>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
-        Manual stay records only. Rent is paid directly to the owner. Use Monthly Commission for statements and external remittance reports, reviewed manually by staff. No online payments are processed.
+        These manual records and their earlier-model 5% calculations are illustrative, not an assessment of fees on external payments. Earlier monthly statements are retained in Legacy Commission Records. No online checkout, deduction or payout is available.
         Refundable deposits, taxes, and other charges are excluded. Cancelled stays and other-source stays have no commission.
         This ledger does not reserve dates, check calendar availability, or change occupancy; update unit occupancy separately.
       </p>
       <p className="mono-num" style={{ marginBottom: '20px' }}>
-        <strong>Calculated commission on recorded stays: {pesos(totalCommission)}</strong><br />
+        <strong>Illustrative earlier-model calculation: {pesos(totalCommission)}</strong><br />
         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Owner-reported basis; this is not collected revenue or a payment confirmation.</span>
       </p>
       {!units.length ? <p>Add a unit to your portfolio before recording a short stay.</p> : (
@@ -57,7 +57,7 @@ export function ShortStayLedger({ units, properties, stays, inquiries, statement
             if (ok) {
               setGuestName(''); setRent(''); setCheckIn(''); setCheckOut('');
               setInquiryId('');
-              setNotice('Completed stay recorded. Commission calculated; no payment was processed.');
+              setNotice('Completed stay recorded. The fee estimate is illustrative; nothing was charged.');
             }
           } finally { setBusy(false); }
         }}>

@@ -51,3 +51,18 @@
 .commission-success { color: var(--status-green); }
 .commission-empty { padding: 24px 0; color: var(--text-secondary); }
 @media (max-width: 600px) { .commission-workspace { padding: 16px; } .commission-editor { padding: 12px; } }
+
+.billing-workspace { min-width: 0; padding: 24px; }
+.billing-workspace h2 { font-size: 1.2rem; margin-bottom: 12px; }
+.billing-workspace h3 { font-size: 1rem; margin: 20px 0 12px; }
+.billing-workspace p { margin: 10px 0; line-height: 1.6; }
+.billing-workspace fieldset { border: 0; padding: 0; min-width: 0; }
+.billing-workspace .commission-toolbar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.billing-workspace label { display: grid; gap: 6px; flex: 1 1 180px; min-width: 0; max-width: 360px; font-size: .875rem; }
+.billing-workspace input, .billing-workspace select { min-width: 0; max-width: 100%; }
+.private-ledger-scroll { max-width: 100%; overflow-x: auto; }
+.payment-policy-table { min-width: 0; table-layout: fixed; }
+.payment-policy-table th:first-child { width: 60%; }
+.payment-policy-table td:first-child { min-width: 0; }
+.payment-policy-table td:last-child { white-space: normal; }
+@media (max-width: 600px) { .billing-workspace { padding: 16px; } }

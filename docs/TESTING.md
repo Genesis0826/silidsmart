@@ -1,5 +1,11 @@
 # Testing Strategy & Verification Suite
 
+## Commission pilot acceptance November 20 2026
+
+The 36-case suite includes new free-management boundaries, 3%/5%/zero hypothetical fees, currency and night-count validation, disabled payment readiness, secret redaction, test-only v2 adapter responses, reconciled monthly board values, private persisted Wi-Fi, unchanged ledgers after quoting and default HTTP legacy-write rejection. Historical commission tests explicitly opt into the archived contract on isolated servers. TypeScript, Oxlint and production Vite build pass.
+
+Hidden Edge checks use isolated fixtures, not the live database: free owner header, fee/channel previews, unavailable checkout, Wi-Fi creation/reload, combined totals, legacy read-only controls, mobile overflow and sign-out/public privacy. A consistent live-data backup was migrated on a copy and all previous rows/counts compared before Wi-Fi persistence testing. Provider sandbox/live acceptance has not been run; injected adapter responses do not establish a working PayMongo account.
+
 ## Overview
 Documents the automated test suite, frontend static checks, and live proxy smoke checks for SilidSmart.
 

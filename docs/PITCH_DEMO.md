@@ -1,20 +1,23 @@
 # Saturday pitch walkthrough
 
+**Current version:** free management and proposed online commissions supersede the earlier subscription/manual-remittance model. Use the working occupancy flow and Monthly Bill Board. Checkout, contracts, payouts and refund guarantees remain future work; the source paper’s payment demo is not runnable. See [payment pilot](PAYMENT_PILOT.md).
+
+
 For November 21, 2026. Present SilidSmart as a concept prototype with example accounts, rentals, prices, and approximate map locations.
 
 ## Five seeded pitch examples
 
 The opt-in pitch profile adds **five separately rentable units under a dedicated fictional owner**. Existing portfolios are preserved. This separate dataset supports predictable rehearsal; ordinary startup does not reset its progress.
 
-From `D:\Techno\silidsmart\backend`, run `npm run seed:pitch` once, then refresh the app. Sign in through the normal email form using **`pitch.owner@example.test` / `password123`** (initial sample password). The owner appears as **Pitch Demo Owner (Example)** with **5 units and a proposed PHP 99 monthly plan**. It is not Maria's portfolio or a real customer.
+From `D:\Techno\silidsmart\backend`, run `npm run seed:pitch` once, then refresh the app. Sign in through the normal email form using **`pitch.owner@example.test` / `password123`** (initial sample password). The owner appears as **Pitch Demo Owner (Example)** with **5 units and free management with no subscription**. It is not Maria's portfolio or a real customer.
 
 | Sample unit | Demo action | Expected result |
 | --- | --- | --- |
 | PITCH 01 - Vacancy Demo | Find it publicly, then owner marks it Occupied | Reloaded Available now excludes it; All published units retains its occupied label. |
 | PITCH 02 - Occupied Demo | Open it in All published units | Occupied/unavailable status and an expected date are public. Tenant and financial records stay private. The date is an owner estimate. |
-| PITCH 03 - Rent and Utilities | Show Rent Payment Ledger, then Utility Tracker | PHP 7,000 monthly rent Due, PHP 1,200 Electricity Due, PHP 300 Water Paid. Demonstrate a manual status change; no money is processed and no 5% applies. |
-| PITCH 04 - Short Stay Demo | Show Short Stays & Commission | Completed SilidSmart rent PHP 4,000 plus PITCH 05's PHP 6,000 yields PHP 10,000 eligible rent and PHP 500 fee. Other-source PHP 2,000 and cancelled PHP 1,000 contribute zero commission. |
-| PITCH 05 - Commission Demo | Show Monthly Commission; sign out and use Platform Review Lead → Commission Remittances | The seeded previous-month statement starts Under review, with PHP 500 outstanding. Simulate staff review with an explicit fictional note; Verified clears the balance. No actual funds moved. |
+| PITCH 03 - Rent and Utilities | Open Monthly Bill Board, then Utility Tracker if needed | PHP 7,000 rent Due, PHP 1,200 electricity Due, PHP 300 water Paid (manual). Wi-Fi is supported; missing bills stay Not recorded. No money is processed. |
+| PITCH 04 - Short Stay Demo | Show Short Stay Records; use Business Model for new quotes | Earlier fee examples are illustrative. Preview PHP 4,000 proposed online short-stay rent as PHP 200, or cash as zero, with chargedPhp zero. |
+| PITCH 05 - Commission Demo | Open Legacy Commission Records read-only | The older fictional PHP 500 report is preserved for traceability, not a new-model online payment or payout. Do not simulate staff verification in the current UI. |
 
 **Dates and amounts:** The seed uses the previous completed checkout month (October 2026 for this meeting) and current utility month (November 2026). Its statement includes all four sample stays and a clearly labelled sample transfer report. Issuing has already locked that checkout month; show existing calculations rather than attempting to cancel a locked entry. Listing cards show monthly rent; private short-stay rows store total accommodation rent for a stay. These are different measures.
 
@@ -24,13 +27,13 @@ From `D:\Techno\silidsmart\backend`, run `npm run seed:pitch` once, then refresh
 
 ### Suggested five-member speaking order
 
-Keep the existing eight-slide order and target 6:40 including clicks/handoffs. These are rehearsal targets, not measured timings.
+Keep the existing eight-slide order and target 5:40 including clicks/handoffs for the requested five-to-six-minute version. Use the updated external SilidSmart Presentation Speaking Script. Its approximately 660 spoken words and slide timing cues supersede the older 6:40 run-card schedule. These are rehearsal targets, not measured timings.
 
-1. **Member 1, 0:00–1:30:** Cover, problem/customers and value. State that accounts, properties and locations are examples.
-2. **Member 2, 1:30–3:30:** Use PITCH 01 throughout Find/Update/Check. Show All published units and PITCH 02's occupied status if time allows. Narrate while another member operates the screen.
-3. **Member 3, 3:30–4:30:** Free for 1–4, PHP 99 for 5–10, PHP 199 for 11–25, PHP 349 for 26–50, custom above 50. The seeded 5-unit owner is PHP 99. Only completed SilidSmart short stays carry 5%; owners remit monthly by next month's 10th. No gateway.
-4. **Member 4, 4:30–5:50:** Market and proposed advantage. Start locally; similar tools exist and adoption is unvalidated.
-5. **Member 5, 5:50–6:40:** Viability, limits and next pilot. Keep PITCH 03/04/05 ready for utility/commission questions instead of extending the main demo.
+1. **Member 1, 0:00–1:25:** Cover, problem/customers and value. State that accounts, properties and locations are examples.
+2. **Member 2, 1:25–2:45:** Use PITCH 01 throughout Find/Update/Check, including All published units with its occupied label. Briefly show the prepared PITCH 03 utility records. Narrate while another member operates the screen; avoid role switches or new bill entry.
+3. **Member 3, 2:45–3:50:** Free management for all owners. Proposed future in-app rent fees: 3% monthly / 5% eligible short stays, 0% utilities and cash/external transfers. Show an illustrative quote and unavailable checkout. Owner routing/provider acceptance remain prerequisites.
+4. **Member 4, 3:50–5:00:** Market and proposed position. Start locally. Use slide 7's Buildium, Nutiliti and Travelnest Direct examples to acknowledge existing capabilities; local preference and adoption are unvalidated.
+5. **Member 5, 5:00–5:40:** Viability, limits and next pilot. Keep PITCH 04/05 commission records ready for questions instead of extending the main demo.
 
 If the group has a different number of speakers, combine adjacent parts without changing the logic. Rehearse from the projected slides, then restore only the pitch fixtures for the final starting state. Sample staff review is not real payment-provider verification or actual revenue.
 
@@ -75,21 +78,16 @@ Avoid spending the presentation opening every tab. Keep admin moderation as an o
 
 ### 4. Business model — 40 seconds
 
-“Our proposed model keeps renter browsing and inquiries free. Owners have no monthly fee for one to four units; five to ten costs ₱99, eleven to twenty-five ₱199, and twenty-six to fifty ₱349. A separate 5% owner-paid fee applies only to completed SilidSmart-sourced short stays. Owners remit monthly outside the app and staff review receipt manually. Long-term rent and utilities have no commission. There is no payment gateway.”
+“Listing and core owner management are free. Our proposed future in-app fees are 3% on monthly accommodation rent and 5% on SilidSmart short stays of 1–29 nights. Utilities, deposits and cash/external transfers have no commission. Today, Business Model only previews these amounts and charges nothing; provider account setup, owner routing and verified payments remain prerequisites.”
 
-If asked: proposed tiers are 1–4 units Free, 5–10 at ₱99/month, 11–25 at ₱199/month, 26–50 at ₱349/month, and a custom quote above 50. All plans calculate a separate 5% owner-paid fee on owner-reported completed SilidSmart-sourced short stays. Owners can demonstrate the private Short Stays & Commission ledger; it does not reserve dates or collect payments. Pricing is a proposal to validate, not demonstrated willingness to pay or collected revenue.
+## Optional bill board and fee preview demonstration
 
-## Optional monthly commission Q&A demonstration
+1. Open Monthly Bill Board and choose the sample month. For PITCH 03, show rent PHP 7,000 Due, Electricity PHP 1,200 Due and Water PHP 300 Paid (manual). Missing Wi-Fi is Not recorded; add a manual Wi-Fi bill in Utility Tracker only if needed for a longer Q&A.
+2. Open Business Model. Preview PHP 4,500 monthly online rent: PHP 135 proposed fee. Preview PHP 4,000 short-stay rent for three nights: PHP 200. Switch to cash/external transfer: zero. Actual charged amount remains zero in every case.
+3. Show that checkout is unavailable and sandbox credentials are not configured. The adapter is prepared server-side; it does not demonstrate an approved provider account, automatic splits or payouts.
+4. Legacy Commission Records is read-only history of the earlier model. Do not issue statements, report new transfers or simulate staff settlement in the current app. Historical snapshots are not new-model revenue.
 
-Use sample records only. No actual transfer, collection destination or provider is configured. Prefer a separate demo database/session if preserving an existing portfolio is important; never reset existing data merely to rehearse this flow.
-
-1. As Maria, open **Short Stays & Commission**. Record a sample completed stay, October 1–3, 2026, accommodation rent PHP 10,000, source SilidSmart. Optionally link an existing inquiry for the same unit. Explain that completion/source/rent are owner reports; a link is not verification.
-2. Open **Monthly Commission**, choose October 2026 and issue the statement. It shows PHP 500 (or the total including any other recorded October entries), due November 10. On November 20, an unpaid historical example correctly shows Overdue. November remains a preview until December 1. Issuing locks the checkout month; a retry does not create another charge.
-3. Choose **Report external remittance** and enter sample transfer details for the exact statement amount. Show **Under review**, with the amount still outstanding. Explain that the tenant paid rent to the owner/authorized manager and the owner separately remits platform commission.
-4. Sign out and enter **Platform Review Lead → Commission Remittances**. Demonstrate returning an unmatched report with a reason, or simulate staff receipt review with a clear sample note. In real operation, staff must match actual received funds, amount/date/reference before confirming. No bank/provider verification happens here.
-5. Show the retained attempt history, verified zero outstanding and locked checkout month. Admin can void an unpaid statement without pending/verified reports for correction; a new version preserves the previous snapshot. Verified statements cannot be edited/voided in this prototype.
-
-**Utility explanation:** Electricity/Water records are owner-only and manually marked Paid/Due/Overdue. A private tenant bill view, consolidated rent-plus-utilities total, Internet bills, owner payment QR, recurring rent generation and payment gateway are not implemented. Do not claim utility tracking is unique. See [business definitions and official evidence](BUSINESS_DEFINITIONS.md).
+**Utility explanation:** Electricity, Water and Wi-Fi are private owner records. The combined owner board is built; tenant checkout, recurring bills/reminders, submeter allocation, signed contracts, booking holds, listing expiry and refund guarantees remain future work. See [payment pilot acceptance gates](PAYMENT_PILOT.md).
 
 ### 5. Prototype status and next step — 45 seconds
 

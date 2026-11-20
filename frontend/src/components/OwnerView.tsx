@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Property, Unit, Tenant, RentRecord, Inquiry, Owner, RentPaymentStatus, ShortStay, ShortStayInput, UtilityRecord, UtilityInput, DirectorySettings } from '../types';
 import {
   Plus, Shield, BarChart3, Download, Search,
-  Check, X, FileText, Info, RefreshCw, Rows3, Rows4, QrCode, Share2, Copy, UserCheck
+  Check, X, FileText, RefreshCw, Rows3, Rows4, QrCode, Share2, Copy, UserCheck
 } from 'lucide-react';
 import { downloadCsv } from '../utils/exportCsv';
 import { ownerPlan } from '../utils/pricing';
 import { ShortStayLedger } from './ShortStayLedger';
 import { UtilityTracker } from './UtilityTracker';
+import { MonthlyBillBoard } from './MonthlyBillBoard';
+import { BusinessModel } from './BusinessModel';
 import { UnitDirectorySettings } from './UnitDirectorySettings';
 import { CommissionStatements } from './CommissionStatements';
 import type { CommissionStatement, CommissionRemittanceInput } from '../types';
@@ -39,7 +41,7 @@ interface OwnerViewProps {
 }
 
 export const OwnerView = ({
-  commissionStatements, onIssueCommission, onSubmitRemittance,
+  commissionStatements,
   owner,
   properties,
   units,
@@ -57,7 +59,7 @@ export const OwnerView = ({
   onUpdateRentStatus,
   onRespondInquiry,
 }: OwnerViewProps) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays' | 'utilities' | 'commissions'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays' | 'utilities' | 'commissions' | 'billBoard'>('inventory');
   const [directoryUnit, setDirectoryUnit] = useState<Unit | null>(null);
   const [tableDensity, setTableDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [copiedPostToast, setCopiedPostToast] = useState<string | null>(null);
@@ -228,7 +230,7 @@ export const OwnerView = ({
     return ownerInquiries.filter((i) => i.status === inquiryStatusFilter);
   }, [ownerInquiries, inquiryStatusFilter]);
 
-  // Determine pricing tier from unit count
+  // Management is free regardless of portfolio size.
   const plan = ownerPlan(totalUnits);
   const currentTier = `${plan.name} • ${plan.price === null ? 'Custom quote' : `₱${plan.price}/mo`}`;
 
@@ -311,7 +313,7 @@ export const OwnerView = ({
               onClick={() => setActiveTab('plans')}
               className="btn btn-secondary btn-sm mono-num"
               style={{ maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left' }}
-              title="View BMC Subscription Plan"
+              title="View the proposed commission model"
             >
               <FileText size={14} />
               <span>{currentTier}</span>
@@ -439,13 +441,14 @@ export const OwnerView = ({
               </button>
 
               <button onClick={() => setActiveTab('commissions')} className={`saas-nav-item ${activeTab === 'commissions' ? 'active' : ''}`}>
-                <span>Monthly Commission</span>
+                <span>Legacy Commission Records</span>
               </button>
               <button onClick={() => setActiveTab('shortStays')}
                 className={`saas-nav-item ${activeTab === 'shortStays' ? 'active' : ''}`}>
-                <span>Short Stays & Commission</span>
+                <span>Short Stay Records</span>
               </button>
 
+              <button onClick={() => setActiveTab('billBoard')} className={`saas-nav-item ${activeTab === 'billBoard' ? 'active' : ''}`}><span>Monthly Bill Board</span></button>
               <button onClick={() => setActiveTab('utilities')}
                 className={`saas-nav-item ${activeTab === 'utilities' ? 'active' : ''}`}>
                 <span>Utility Tracker</span>
@@ -462,7 +465,7 @@ export const OwnerView = ({
                 onClick={() => setActiveTab('plans')}
                 className={`saas-nav-item ${activeTab === 'plans' ? 'active' : ''}`}
               >
-                <span>Subscription & Tiers</span>
+                <span>Business Model</span>
               </button>
             </nav>
 
@@ -1086,7 +1089,7 @@ export const OwnerView = ({
                       Monthly Rent Payment Ledger
                     </h2>
                     <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      Record monthly rent payment statuses manually. Monthly rent has no platform commission. SilidSmart does not collect or verify payments.
+                      Record external monthly rent statuses manually. Cash/external transfers have no commission under the new proposal. A future in-app checkout would use 3% on accommodation rent. No payments are collected or verified here.
                     </p>
                   </div>
 
@@ -1550,127 +1553,12 @@ export const OwnerView = ({
               <ShortStayLedger units={ownerUnits} properties={ownerProperties} stays={shortStays} inquiries={inquiries} statements={commissionStatements}
                 onRecord={onRecordShortStay} onUpdateStatus={onUpdateShortStay} />
             )}
-            {activeTab === 'commissions' && <CommissionStatements statements={commissionStatements} stays={shortStays} onIssue={onIssueCommission} onSubmit={onSubmitRemittance} />}
+            {activeTab === 'commissions' && <CommissionStatements statements={commissionStatements} stays={shortStays} />}
+            {activeTab === 'billBoard' && <MonthlyBillBoard units={ownerUnits} properties={ownerProperties} rent={ownerRentRecords} utilities={utilityRecords} onRent={() => setActiveTab('ledger')} onUtilities={() => setActiveTab('utilities')} />}
             {activeTab === 'utilities' && (
               <UtilityTracker units={ownerUnits} properties={ownerProperties} records={utilityRecords} onSave={onSaveUtility} />
             )}
-            {activeTab === 'plans' && (
-              <div className="card" style={{ padding: '24px' }}>
-                <div style={{ marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--brand-navy)', margin: '0 0 6px 0' }}>
-                    Owner Monthly Subscription Tiers
-                  </h2>
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                    Free monthly access for 1–4 units; paid plans start at 5 units. All plans use a separate 5% owner-paid fee on completed short stays sourced through SilidSmart. Renters browse and inquire free.
-                  </p>
-                </div>
-
-                {/* Counting Rule Highlight */}
-                <div
-                  style={{
-                    padding: '14px 18px',
-                    backgroundColor: 'var(--action-blue-light)',
-                    border: '1px solid var(--action-blue-border)',
-                    borderRadius: 'var(--radius-sm)',
-                    marginBottom: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-                    <Info size={18} color="var(--brand-navy)" />
-                    <div style={{ fontSize: '0.85rem', color: 'var(--brand-navy)' }}>
-                      <strong>Standard Counting Rule:</strong> 1 room or 1 apartment = 1 count. You currently manage{' '}
-                      <strong>{totalUnits} units</strong>.
-                    </div>
-                  </div>
-                  <span className="badge badge-paid" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>
-                    Active Plan: {currentTier}
-                  </span>
-                </div>
-
-                <p style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Proposed prices. Rent and subscriptions are not processed here. Monthly Commission records separate external remittance reports for staff review. Long-term rent and utilities have no commission. The short-stay base excludes deposits, taxes and other charges; cancelled and other-source stays have no fee. Stay completion and source remain owner-reported.
-                </p>
-                {/* Capacity-based plans share the same core tools. */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-                  {[
-                    {
-                      title: 'Free', range: '1–4 rooms / units', price: '₱0', period: '/ month',
-                      active: totalUnits <= 4,
-                      features: ['Up to 4 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
-                    },
-                    {
-                      title: 'Tier 1: Starter',
-                      range: '5–10 rooms / units',
-                      price: '₱99',
-                      period: '/ month',
-                      active: totalUnits >= 5 && totalUnits <= 10,
-                      features: ['5 to 10 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
-                    },
-                    {
-                      title: 'Tier 2: Growth',
-                      range: '11–25 rooms / units',
-                      price: '₱199',
-                      period: '/ month',
-                      active: totalUnits >= 11 && totalUnits <= 25,
-                      features: ['11 to 25 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
-                    },
-                    {
-                      title: 'Tier 3: Scale',
-                      range: '26–50 rooms / units',
-                      price: '₱349',
-                      period: '/ month',
-                      active: totalUnits >= 26 && totalUnits <= 50,
-                      features: ['26 to 50 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
-                    },
-                    {
-                      title: 'Enterprise Dorm',
-                      range: '>50 rooms / units',
-                      price: 'Custom Quote',
-                      period: '',
-                      active: totalUnits > 50,
-                      features: ['More than 50 units', 'Monthly price by agreement', '5% on SilidSmart short stays'],
-                    },
-                  ].map((tier, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        padding: '18px',
-                        borderRadius: 'var(--radius-md)',
-                        border: tier.active ? '2px solid var(--action-blue)' : '1px solid var(--border-light)',
-                        backgroundColor: tier.active ? 'var(--action-blue-light)' : '#FFFFFF',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--brand-navy)' }}>{tier.title}</span>
-                          {tier.active && <span className="badge badge-verified">Current Tier</span>}
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>{tier.range}</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                          {tier.price}
-                          <span style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}>{tier.period}</span>
-                        </div>
-                        <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                          {tier.features.map((f, i) => (
-                            <li key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Check size={13} color="var(--status-green)" /> {f}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            {activeTab === 'plans' && <BusinessModel unitCount={totalUnits} />}
           </div>
         </div>
       </div>

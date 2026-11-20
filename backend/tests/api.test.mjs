@@ -32,24 +32,15 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     }
   });
 
-  it('1. BMC Subscription Tier Calculator enforces 1 room/apt = 1 count and exact PHP pricing', () => {
-    for (const [count, fee] of [[0, 0], [1, 0], [4, 0], [5, 99], [10, 99], [11, 199], [25, 199], [26, 349], [50, 349], [51, null]]) {
-      assert.equal(calculateBmcSubscriptionTier(count).monthlyFeePhp, fee, `Boundary ${count}`);
+  it('1. Free management has no unit-based subscription or custom quote', () => {
+    for (const count of [0,1,4,5,10,11,25,26,50,51,1000]) {
+      const policy=calculateBmcSubscriptionTier(count);
+      assert.equal(policy.monthlyFeePhp,0); assert.equal(policy.managedUnits,count);
+      assert.equal(policy.customQuote,false);
+      assert.equal(policy.paymentPolicy.monthlyRentPercent,3);
+      assert.equal(policy.paymentPolicy.shortStayPercent,5);
+      assert.equal(policy.paymentPolicy.checkoutEnabled,false);
     }
-    const tier1 = calculateBmcSubscriptionTier(6);
-    assert.equal(tier1.monthlyFeePhp, 99);
-    assert.equal(tier1.countingRule, '1 room or 1 apartment = 1 count');
-    assert.equal(tier1.disclaimer, 'The monthly fee depends on the total rooms or apartment units managed');
-
-    const tier2 = calculateBmcSubscriptionTier(18);
-    assert.equal(tier2.monthlyFeePhp, 199);
-
-    const tier3 = calculateBmcSubscriptionTier(42);
-    assert.equal(tier3.monthlyFeePhp, 349);
-
-    const tierCustom = calculateBmcSubscriptionTier(65);
-    assert.equal(tierCustom.monthlyFeePhp, null);
-    assert.equal(tierCustom.customQuote, true);
   });
 
   it('2. Public Directory API (/api/public/listings) returns only Vacant published units and leaks 0 tenant PII', async () => {

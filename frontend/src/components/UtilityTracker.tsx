@@ -34,7 +34,7 @@ export function UtilityTracker({ units, properties, records, onSave }: Props) {
   return <section className="card" style={{ padding: '24px' }} aria-labelledby="utility-tracker-title">
     <h2 id="utility-tracker-title" style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Utility Tracker</h2>
     <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>
-      Private electricity and water bills for your units. Payment dates, references and statuses are entered by you;
+      Private electricity, water and Wi-Fi bills for your units. Payment dates, references and statuses are entered by you;
       SilidSmart does not collect or verify utility payments. Utility amounts are excluded from the 5% short-stay rent commission.
     </p>
     <p className="mono-num" style={{ marginBottom: '20px' }}>
@@ -61,7 +61,7 @@ export function UtilityTracker({ units, properties, records, onSave }: Props) {
           </label>
           <label htmlFor="utility-type">Utility type
             <select id="utility-type" className="select" disabled={!!editingId} value={form.utilityType} onChange={event => setForm({ ...form, utilityType: event.target.value as UtilityInput['utilityType'] })}>
-              <option>Electricity</option><option>Water</option>
+              <option>Electricity</option><option>Water</option><option>Wi-Fi</option>
             </select>
           </label>
           <label htmlFor="utility-month">Billing month

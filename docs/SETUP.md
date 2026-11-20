@@ -39,3 +39,7 @@ Exact steps and prerequisites for running the SilidSmart B2B2C frontend and SQLi
 - **Environment Overrides**:
   - `PORT`: Backend listen port (defaults to `4000`).
   - `CORS_ORIGIN`: Allowed CORS origin header (defaults to `*`).
+
+## Payment preparation
+
+No gateway credentials are required to run this prototype. Owner management is free; Business Model provides hypothetical 3% monthly / 5% short-stay quotes and a disabled checkout state. The backend reads PAYMONGO_SECRET_KEY only from its process environment; .env.example is documentation, not an automatically loaded file. Even a test key does not enable owner rent routing. See [provider readiness and test adapter](PAYMENT_PILOT.md). Existing manual commission examples are read-only.

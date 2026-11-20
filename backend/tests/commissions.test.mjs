@@ -26,7 +26,8 @@ describe('Monthly commission statements and external remittance review', () => {
   const review = (id, changes = {}, role = 'admin') => call(`/api/admin/commission-remittances/${id}`, 'PATCH', { decision: 'Verified', note: 'Matched the actual received amount and reference in the isolated QA fixture.', fundsReceived: true, receivedDate: '2020-11-01', ...changes }, role);
   beforeEach(async () => {
     Object.keys(cookies).forEach(k => delete cookies[k]);
-    server = createAppServer(createSilidSmartService(':memory:'));
+    // Historical-model regression only. Production keeps these mutations archived.
+    server = createAppServer(createSilidSmartService(':memory:'), { allowLegacyCommissionWrites: true });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     base = `http://127.0.0.1:${server.address().port}`;
     const { body } = await workspace(); ownerUnit = body.units[0].id;

@@ -2,6 +2,7 @@ import http from 'node:http';
 import { URL } from 'node:url';
 import { createSilidSmartService, ValidationError, NotFoundError } from './service.mjs';
 import { AccessError } from './auth.mjs';
+import { paymentReadiness, quoteProposedPayment } from './payments.mjs';
 
 function sendJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
@@ -38,7 +39,7 @@ function readJsonBody(req) {
   });
 }
 
-export function createAppServer(service = createSilidSmartService()) {
+export function createAppServer(service = createSilidSmartService(), { allowLegacyCommissionWrites = false } = {}) {
   return http.createServer(async (req, res) => {
     if (req.method === 'OPTIONS') {
       res.writeHead(204, {
@@ -90,6 +91,18 @@ export function createAppServer(service = createSilidSmartService()) {
       if (pathname === '/api/bootstrap' || pathname.startsWith('/api/admin/') || pathname.startsWith('/api/system/')) requireRole('admin');
       if (pathname.startsWith('/api/owner/')) requireRole('owner');
       if (method === 'POST' && (pathname === '/api/public/inquiries' || pathname === '/api/public/reports')) requireRole('renter');
+      if (!allowLegacyCommissionWrites && method !== 'GET'
+        && (/^\/api\/owner\/commission-statements(?:\/|$)/.test(pathname) || /^\/api\/admin\/commission-(statements|remittances)(?:\/|$)/.test(pathname))) {
+        const error = new ValidationError('LEGACY_COMMISSION_READ_ONLY', 'Earlier manual commission statements are archived. No new statement or settlement is permitted under the proposed online model.');
+        error.status = 409;
+        throw error;
+      }
+      if (method === 'GET' && pathname === '/api/owner/payment-readiness') {
+        sendJson(res, 200, paymentReadiness()); return;
+      }
+      if (method === 'POST' && pathname === '/api/owner/payment-quotes') {
+        sendJson(res, 200, quoteProposedPayment(await readJsonBody(req), ValidationError)); return;
+      }
       // Health Check
       if (method === 'GET' && pathname === '/api/health') {
         sendJson(res, 200, { status: 'ok', service: 'silidsmart-b2b2c-api', storage: 'sqlite' });

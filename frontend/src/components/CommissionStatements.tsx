@@ -44,9 +44,11 @@ export function CommissionStatements({ statements, stays = [], owners = [], onIs
   const preview = eligible.reduce((sum, s) => sum + Math.round(s.commissionPhp * 100), 0) / 100;
   const months = [...new Set(statements.map(s => s.billingMonth))];
   const visible = statements.filter(s => filter === 'all' || s.billingMonth === filter);
+  const readOnly = !onIssue && !onSubmit && !onReview && !onVoid;
   return <section className="card commission-workspace" aria-labelledby="commission-title">
-    <h2 id="commission-title">Monthly Commission Statements</h2>
-    <p>5% of accommodation rent for completed SilidSmart-sourced short stays only. Long-term rent and utilities have no commission. Group by checkout month in Philippine time. Due on the 10th of the next month.</p>
+    <h2 id="commission-title">Legacy Manual Commission Records</h2>
+    {readOnly && <p><strong>Earlier-model examples, retained read-only.</strong> These snapshots are not online-payment records or amounts charged under the new 3% / 5% proposal. New checkout and automatic settlement are not available.</p>}
+    <p>Under the earlier manual model, completed SilidSmart-sourced short stays used 5%, with no long-term or utility commission. These historical snapshots use checkout month in Philippine time and the earlier next-month 10th due date. They are not the proposed online model.</p>
     <p className="commission-note">Rent goes directly to the owner or authorized property manager. Owners remit platform commission separately, outside SilidSmart. These are manual records with staff review, with no payment gateway or automatic deductions. Subscription charges, deposits, taxes and utilities are excluded from these statements.</p>
     {onIssue && <form className="commission-editor" onSubmit={e => {
       e.preventDefault(); void run(() => onIssue(month), 'Statement issued. Its checkout month is now locked against changes.');

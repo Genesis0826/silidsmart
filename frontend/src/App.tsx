@@ -754,7 +754,7 @@ export function App() {
           <div>
             <strong style={{ color: 'var(--brand-navy)' }}>SilidSmart.ph</strong> • Small Rental Operations & Public Room Directory
             <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-              Concept prototype - sample properties only • Free renter discovery • Free owner plan for 1–4 units • 5% on owner-reported SilidSmart short stays • No online payments
+              Concept prototype - sample properties only • Free discovery and owner management • Proposed online rent fees: 3% monthly / 5% short stays • Checkout not available
             </div>
           </div>
           <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

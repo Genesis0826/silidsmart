@@ -1,5 +1,13 @@
 # Project Requirements & BMC Specification
 
+## Current commercial and payment contract November 20 2026
+
+The [commission pilot contract](PAYMENT_PILOT.md) supersedes the subscription schedule and manual remittance requirements retained below as earlier-model history. No owner subscription depends on unit count. Core management and listing are free. Proposed future checkout fees are 3% monthly accommodation rent and 5% SilidSmart short stays of 1–29 nights, owner-paid; utilities/deposits/taxes and cash/external transfers have no commission.
+
+Acceptance: every portfolio size returns monthlyFeePhp zero; quote PHP 4,500 monthly online rent as PHP 135, PHP 4,000 short online rent as PHP 200, cash/utilities as zero, always with chargedPhp zero. Deny invalid precision and 30-night short-stay quotes. Public/renter requests cannot use owner quotes or read bills. Manual Wi-Fi bills use existing duplicate/role/ownership controls. The owner board must keep unrecorded cells distinct from Paid and reconcile centavo totals by month without exposing tenant data publicly. Default legacy statement mutations return 409 and leave snapshots unchanged. Checkout remains unavailable even if a test key is configured until further routing/verification work is accepted.
+
+The PayMongo adapter is preparation only. Provider confirmation and real sandbox acceptance are dependencies, not completed features. Bookings, held funds, signed contracts, automatic listing expiry and refund guarantees must not appear in the current demo.
+
 ## Overview
 Defines the business requirements, Business Model Canvas (BMC) value propositions, user stories, pricing rules, and mandatory compliance disclaimers for **SilidSmart.ph**.
 

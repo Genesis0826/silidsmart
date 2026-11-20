@@ -1,5 +1,11 @@
 # Security & Privacy Policy
 
+## Payment preparation boundary November 20 2026
+
+No live gateway or application checkout is enabled. Readiness returns only a configuration boolean, never the process key. Owner quote/readiness routes use the existing session role checks and do not write financial records. The sandbox adapter rejects live keys, uses a fixed provider endpoint and integer centavos, has a timeout and rejects live-mode/invalid-host replies. It has no public route. Signature verification, event replay/amount/account matching, tenant-to-bill access and reconciliation must be implemented and accepted before routing rent to any provider.
+
+Earlier commission mutations are blocked by the normal server and archived examples do not verify provider receipt. No property-safety or 48-hour refund guarantee is established. See [payment pilot gates](PAYMENT_PILOT.md).
+
 ## Overview
 Defines the B2B2C privacy isolation boundaries, role-scoped serialization contracts, input validation rules, and trust badge disclaimers for SilidSmart.
 

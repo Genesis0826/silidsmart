@@ -16,11 +16,11 @@ This is a **pitch prototype for Saturday, November 21, 2026**. Accounts, propert
 2. **Private Owner Operations (`OwnerView`) — Single-Entry Vacancy Sync**
    - Manage room/unit inventory (`1 room or 1 apartment = 1 count`), toggle occupancy (`Vacant` / `Occupied`), and record move-in tenants and rent payment statuses (`Paid`, `Due`, `Overdue`).
    - Marking a unit `Occupied` excludes it from Available now and creates private tenant/rent rows when tenant details are supplied. Publication stays under owner control through **Directory settings**; published occupied units remain in All published units. Marking Vacant clears the availability estimate and preserves publication.
-   - Private **Utility Tracker** for electricity/water bills by unit/month, amounts, due dates and manual Paid/Due/Overdue labels, with payment date/reference when marked Paid. Owners can correct bill amount/due date/payment fields and filter records. No utility payment is processed or verified, and utility amounts never enter the short-stay commission base.
+   - Private **Monthly Bill Board** combines rent, Electricity, Water and Wi-Fi records by unit/month. Paid is a manual owner label; missing bills remain Not recorded. **Utility Tracker** supports centavo amounts, due dates, corrections and duplicate prevention.
    - Generate printable property gate QR posters and auto-synced Facebook & community group vacancy posts (`QR Poster & FB Share` tab).
-   - Proposed monthly subscriptions (`1–4: Free`, `5–10: ₱99/mo`, `11–25: ₱199/mo`, `26–50: ₱349/mo`, `>50: Custom Quote`). All tiers share core management tools; an empty portfolio has no monthly charge.
-   - Private **Short Stays & Commission** ledger: owners record completed stays and accommodation rent; SilidSmart-sourced stays calculate a separate **5% owner-paid commission** on every plan. Other-source/cancelled stays have no commission. Entries do not reserve dates or change occupancy.
-   - **No payment processing:** rent, subscriptions, and commissions are not collected, deducted, remitted, or verified by the prototype. Ledger amounts are owner-reported calculations, not collected revenue.
+   - **Free owner management at every portfolio size.** Proposed future in-app commissions: 3% monthly accommodation rent, 5% eligible short stays of 1–29 nights. Utilities and cash/external transfers have zero commission. Rates are proposals, not received revenue.
+   - Private **Short Stay Records** retain owner-entered completed stays and earlier illustrative fee calculations. Existing manual statements/remittance examples are labelled legacy and read-only; normal HTTP statement writes return 409.
+   - **Payment preparation only:** validated owner fee previews and readiness status; a server-only PayMongo v2 test adapter is prepared but is not wired to application checkout. No split payouts, tenant checkout, held funds or refunds are enabled. See [payment pilot gates](docs/PAYMENT_PILOT.md).
 3. **Platform Governance & Privacy Audit (`AdminView`)**
    - Manual review of landlord government ID submissions (`Pending review`, `ID reviewed`, `Needs correction`).
    - Listing discrepancy moderation, force publish/delist controls, live system telemetry log, and public/private payload isolation inspection.
@@ -82,7 +82,7 @@ cd frontend && npm run build && npx oxlint
 
 | Document | Purpose |
 |---|---|
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Business Model Canvas (BMC) alignment, pricing tiers, and mandatory disclaimers |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Business model, free management, proposed online fees and prototype limits |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Airbnb/Booking.com-to-SilidSmart translation, runtime boundaries, and role-scoped sync |
 | [docs/WORKFLOW_TRANSLATION.md](docs/WORKFLOW_TRANSLATION.md) | Detailed workflow mapping from two-sided marketplace mechanics to B2B2C |
 | [docs/API.md](docs/API.md) | REST endpoints, error envelope, and public/private serialization rules |

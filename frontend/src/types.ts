@@ -64,7 +64,7 @@ export interface Unit {
 export interface UtilityRecord {
   id: string;
   unitId: string;
-  utilityType: 'Electricity' | 'Water';
+  utilityType: 'Electricity' | 'Water' | 'Wi-Fi';
   billingMonth: string;
   amountPhp: number;
   dueDate: string;

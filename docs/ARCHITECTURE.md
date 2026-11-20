@@ -1,5 +1,11 @@
 # System Architecture
 
+## Current commission pilot boundary
+
+Free owner management supersedes unit-based subscriptions. MonthlyBillBoard derives a private per-unit/month overview from rent and Electricity/Water/Wi-Fi records. Missing records remain explicit; no provider status is inferred. BusinessModel calls owner-only quote/readiness APIs; all quotes are hypothetical with zero charged.
+
+The server-only PayMongo v2 adapter is not wired into application checkout. Owner routing, tenant-bill authorization, verified provider events, idempotency and reconciliation remain prerequisites. Legacy manual snapshots are preserved, with HTTP mutation disabled by default and a read-only UI. The older payment row below describes historical behavior; [PAYMENT_PILOT.md](PAYMENT_PILOT.md) is the current contract.
+
 ## Overview
 Defines the system boundaries, Airbnb/Booking.com-to-SilidSmart B2B2C architectural translation, role-scoped data fetching, and runtime data flows.
 

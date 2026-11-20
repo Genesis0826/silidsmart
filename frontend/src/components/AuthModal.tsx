@@ -354,7 +354,7 @@ export const AuthModal = ({
                       Property Owner
                     </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Free for 1–4 units; paid plans from ₱99/mo
+                      Free listing and management for all owners
                     </span>
                   </button>
                 </div>
@@ -445,7 +445,7 @@ export const AuthModal = ({
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 700, color: 'var(--primary-teal)' }}>
-                            Estimated Subscription
+                            Management access
                           </span>
                           <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                             {currentPlan.name}
@@ -461,7 +461,7 @@ export const AuthModal = ({
                         </div>
                       </div>
                       <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                        The monthly fee depends on the total rooms or apartment units managed. Free for 1–4 units. All plans: 5% owner-paid commission on completed SilidSmart-sourced short stays. Renters browse and inquire free. No payments are collected in this prototype.
+                        No monthly subscription. Proposed online fees: 3% monthly accommodation rent and 5% short stays. Cash/external transfers and utilities have no commission. Checkout is planned; the prototype collects no payments.
                       </p>
                     </div>
 

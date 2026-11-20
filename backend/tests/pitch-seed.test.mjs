@@ -11,11 +11,11 @@ import { createAppServer } from '../src/server.mjs';
 import { PITCH_OWNER_ID, PITCH_PROPERTY_ID, PITCH_EMAIL } from '../src/pitch-seed.mjs';
 
 describe('Opt-in five-unit pitch fixtures', () => {
-  it('creates five whole units, a PHP 99 portfolio, private bills and a PHP 500 pending commission without changing other owners', () => {
+  it('creates five whole units, free management, private bills and a PHP 500 pending commission without changing other owners', () => {
     const service = createSilidSmartService(':memory:');
     const before = service.getOwnerWorkspace('owner-1');
     const prepared = service.preparePitchDemo(); const w = prepared.workspace;
-    assert.equal(prepared.mode, 'created'); assert.equal(w.units.length, 5); assert.equal(w.subscription.monthlyFeePhp, 99);
+    assert.equal(prepared.mode, 'created'); assert.equal(w.units.length, 5); assert.equal(w.subscription.monthlyFeePhp, 0);
     assert.equal(w.units.filter(u => u.status === 'Vacant').length, 3);
     assert.ok(w.units.find(u => u.id === 'pitch-demo-unit-2').expectedAvailableFrom);
     assert.equal(w.rentRecords.find(r => r.unitId === 'pitch-demo-unit-3').amountDue, 7000);

@@ -1,5 +1,16 @@
 # Current State Assessment
 
+## Latest commission-only pilot update November 20 2026
+
+This section supersedes the older pricing and manual-settlement descriptions below. See [payment pilot contract](PAYMENT_PILOT.md).
+
+- Owner listing and core management are free at every portfolio size. Proposed future in-app commissions are 3% monthly accommodation rent and 5% SilidSmart short stays of 1–29 nights. Cash/external payments and utilities have zero commission. No amount is charged by the prototype.
+- Added a private Monthly Bill Board for recorded rent, Electricity, Water and Wi-Fi, with month filtering, manual payment labels and explicit Not recorded cells. Migration 006 preserves existing bills and allows Wi-Fi.
+- Added owner-only hypothetical payment quotes and readiness status. A test-only server adapter is prepared against PayMongo Hosted Checkout v2; no checkout route is enabled, no account/provider end-to-end test was possible, and no automatic split, payout, hold or refund is claimed. User confirmed credentials/platform access are not yet available.
+- Earlier manual commission snapshots are retained as legacy examples. The UI is read-only and default HTTP mutations return 409. Historical workflow regression tests explicitly opt in to legacy writes on isolated servers.
+- All 36 backend cases, TypeScript, Oxlint and production build pass. Isolated migration preserves every prior row/count and supports persisted Wi-Fi. Hidden Edge acceptance passes pricing previews, manual Wi-Fi, board totals/reload, legacy read-only controls, mobile width and privacy. One exact-label selector was corrected before the complete browser rerun. No real money or live gateway was tested.
+- Weekly check-ins/expiry, bedspaces, tenant combined bills, recurring generation, submeter calculations, contracts, refunds and paid featured listings remain proposed. Existing public occupancy/filter behavior is preserved. Canva changes have their own preview approval/save state; do not infer saved status from this code delivery.
+
 ## Overview
 Tracks dated milestone status, prototype readiness, and verified acceptance gates for SilidSmart.
 

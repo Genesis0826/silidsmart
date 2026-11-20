@@ -26,7 +26,7 @@ interface AdminViewProps {
 }
 
 export const AdminView = ({
-  commissionStatements, onReviewRemittance, onVoidCommission,
+  commissionStatements,
   owners,
   properties,
   units,
@@ -247,7 +247,7 @@ export const AdminView = ({
 
           <div className="ledger-kpi-cell">
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Proposed monthly plan value
+              Monthly management charge
             </div>
             <div className="mono-num" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--action-blue)', marginTop: '4px' }}>
               ₱{marketplaceAnalytics.estimatedMrrPhp.toLocaleString()}
@@ -313,7 +313,7 @@ export const AdminView = ({
               </button>
 
               <button onClick={() => setActiveTab('commissions')} className={`saas-nav-item ${activeTab === 'commissions' ? 'active' : ''}`}>
-                <span>Commission Remittances</span>
+                <span>Legacy Commission Records</span>
               </button>
               <button
                 onClick={() => setActiveTab('telemetry')}
@@ -327,7 +327,7 @@ export const AdminView = ({
 
           {/* MAIN GOVERNANCE CONTENT */}
           <div key={activeTab} className="anim-view-enter">
-            {activeTab === 'commissions' && <CommissionStatements statements={commissionStatements} owners={owners} onReview={onReviewRemittance} onVoid={onVoidCommission} />}
+            {activeTab === 'commissions' && <CommissionStatements statements={commissionStatements} owners={owners} />}
             {/* TAB 1: OWNER ID REVIEWS */}
             {activeTab === 'idReviews' && (
               <div>
@@ -538,7 +538,7 @@ export const AdminView = ({
                   <div className="card" style={{ padding: '18px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                        Landlord ID Trust & SaaS Subscription Roll
+                        Owner Management Access
                       </h4>
                       <span className="badge badge-info mono-num">₱{marketplaceAnalytics.estimatedMrrPhp.toLocaleString()}/mo proposed</span>
                     </div>
@@ -568,7 +568,7 @@ export const AdminView = ({
                       ))}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Platform-wide B2B rent roll audited: <strong className="mono-num">₱{marketplaceAnalytics.totalLedgerPaid.toLocaleString()}</strong> collected of{' '}
+                      Owner-entered rent records: <strong className="mono-num">₱{marketplaceAnalytics.totalLedgerPaid.toLocaleString()}</strong> marked paid of{' '}
                       <strong className="mono-num">₱{marketplaceAnalytics.totalLedgerBilled.toLocaleString()}</strong> billed ({owners.length} owners •{' '}
                       {marketplaceAnalytics.idReviewedCount} ID reviewed).
                     </div>
@@ -892,7 +892,7 @@ export const AdminView = ({
                         → Landlord Unit Inventory
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        Single source of truth for room counts (1 room/apt = 1 count) and subscription tiers.
+                        Single source of truth for managed rooms and apartments. Core management is free at every portfolio size.
                       </div>
                     </div>
 
@@ -922,7 +922,7 @@ export const AdminView = ({
                         → Viewing Inquiries & SaaS Tiers
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        Free renters; owner plans: 1–4 free, 5–10 ₱99, 11–25 ₱199, 26–50 ₱349/mo. Separate 5% on owner-reported completed SilidSmart short stays; no payment processing.
+                        Free discovery and owner management. Proposed online rent fees: 3% monthly / 5% short stays. Cash and utilities have no commission. Checkout is not available; earlier manual examples are historical.
                       </div>
                     </div>
                   </div>
