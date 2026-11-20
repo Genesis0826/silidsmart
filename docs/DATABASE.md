@@ -3,6 +3,9 @@
 ## Overview
 Defines the SilidSmart B2B2C relational database schema (`silidsmart/backend/migrations/001_initial_b2b2c_schema.sql`), entity relationships, and strict B2B/B2C privacy boundaries.
 
+## Optional pitch fixtures
+The opt-in `seed:pitch` CLI adds namespaced fictional data through the existing schema; it is not a migration or a normal-startup reset. It uses a consistent native SQLite backup before writes. A single transaction creates/restores the dedicated pitch owner/property/units and linked ledgers; other portfolios are preserved. Default reruns keep progress; explicit restore rejects unexpected extra inventory. Fixture account identity is checked and can be safely rebound after a global sample-data reset without overwriting an existing password. Database files/backups and generated local manifest are ignored by Git. See [pitch preparation](PITCH_DEMO.md#five-seeded-pitch-examples).
+
 ## Data Store Responsibilities
 - **System of Record**: SQLite (`node:sqlite` `DatabaseSync` at `backend/data/silidsmart.sqlite`) stores operational application state across all three personas.
 - **Migrations**: Managed via versioned SQL files in `backend/migrations/` tracked in the `schema_migrations` table.

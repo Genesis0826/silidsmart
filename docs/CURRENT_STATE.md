@@ -3,6 +3,13 @@
 ## Overview
 Tracks dated milestone status, prototype readiness, and verified acceptance gates for SilidSmart.
 
+## Five-unit pitch profile — November 20, 2026
+
+- Added opt-in `npm run seed:pitch`: a dedicated fictional owner/property, exactly five whole units, a PHP 99 proposed plan, private rent and Electricity/Water examples, four short-stay rows with source/cancellation exclusions, and a previous-month PHP 500 statement with a clearly labelled sample remittance Under review. Core product/payment scope is unchanged; the ordinary base seed is unchanged.
+- Loaded the profile locally after a native SQLite backup. Every pre-existing row was compared with the backup and preserved. Live proxy login works; PITCH 01 is still Vacant, electricity still Due and the statement still Under review with PHP 500 outstanding. Browser rehearsal mutations were isolated in memory and did not consume the live starting state.
+- Normal reruns preserve progress. Explicit `--restore` restores only the guarded pitch fixtures, with backup and protection for unexpected extra inventory. Global admin reset removes this opt-in profile; rerunning the seed safely rebuilds it and reattaches the preserved demo account.
+- All 31 backend cases pass. Hidden Edge rehearsed the manual owner login, five-unit view, vacancy/occupied modes, rent/utility updates, fee exclusions and sample staff verification, plus public privacy/mobile width. One navigation selector was corrected to include its count badge; full rerun passed. Frontend source/build was unchanged, so existing compilation evidence is inherited rather than rerun. [Pitch walkthrough](PITCH_DEMO.md#five-seeded-pitch-examples) and a visually reviewed two-page external run card give five examples and five-member speaking handoffs. No Canva changes were required.
+
 ## Current monthly commission and meeting scope — November 20, 2026
 
 - Added fixed monthly commission statements for completed checkout months, due next month's 10th. Only Completed + SilidSmart short-stay rent contributes 5%, summed after per-stay centavo rounding. Long-term rent/utilities have no commission, and subscription charges remain separate. Optional same-unit inquiry links support traceability; owner-declared completion/source/rent are not independently verified.

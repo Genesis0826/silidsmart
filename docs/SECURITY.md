@@ -3,6 +3,9 @@
 ## Overview
 Defines the B2B2C privacy isolation boundaries, role-scoped serialization contracts, input validation rules, and trust badge disclaimers for SilidSmart.
 
+## Local pitch fixture boundary
+Pitch fixture preparation is a local CLI operation, with no new HTTP seed/reset endpoint or browser privilege. It creates a clearly fictional owner account using the prototype's public sample password convention; use its documented sign-in only for the demo. Restore is scoped to identified fixture keys and refuses unexpected inventory or identity collisions. Native database backups and the generated manifest stay outside source control. This does not change production-hardening limitations or introduce real payment credentials.
+
 ## Core Security & Privacy Controls
 
 1. **Strict B2B vs. B2C Data Isolation (Zero Tenant PII Leakage)**

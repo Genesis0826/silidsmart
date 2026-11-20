@@ -46,3 +46,4 @@ Thumbs.db
 # Local Obsidian memory pointer & runtime SQLite databases
 .codex/obsidian-memory.local.json
 backend/data/*.sqlite*
+backend/data/pitch-demo-manifest.json

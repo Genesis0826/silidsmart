@@ -2,8 +2,44 @@
 
 For November 21, 2026. Present SilidSmart as a concept prototype with example accounts, rentals, prices, and approximate map locations.
 
+## Five seeded pitch examples
+
+The opt-in pitch profile adds **five separately rentable units under a dedicated fictional owner**. Existing portfolios are preserved. This separate dataset supports predictable rehearsal; ordinary startup does not reset its progress.
+
+From `D:\Techno\silidsmart\backend`, run `npm run seed:pitch` once, then refresh the app. Sign in through the normal email form using **`pitch.owner@example.test` / `password123`** (initial sample password). The owner appears as **Pitch Demo Owner (Example)** with **5 units and a proposed PHP 99 monthly plan**. It is not Maria's portfolio or a real customer.
+
+| Sample unit | Demo action | Expected result |
+| --- | --- | --- |
+| PITCH 01 - Vacancy Demo | Find it publicly, then owner marks it Occupied | Reloaded Available now excludes it; All published units retains its occupied label. |
+| PITCH 02 - Occupied Demo | Open it in All published units | Occupied/unavailable status and an expected date are public. Tenant and financial records stay private. The date is an owner estimate. |
+| PITCH 03 - Rent and Utilities | Show Rent Payment Ledger, then Utility Tracker | PHP 7,000 monthly rent Due, PHP 1,200 Electricity Due, PHP 300 Water Paid. Demonstrate a manual status change; no money is processed and no 5% applies. |
+| PITCH 04 - Short Stay Demo | Show Short Stays & Commission | Completed SilidSmart rent PHP 4,000 plus PITCH 05's PHP 6,000 yields PHP 10,000 eligible rent and PHP 500 fee. Other-source PHP 2,000 and cancelled PHP 1,000 contribute zero commission. |
+| PITCH 05 - Commission Demo | Show Monthly Commission; sign out and use Platform Review Lead → Commission Remittances | The seeded previous-month statement starts Under review, with PHP 500 outstanding. Simulate staff review with an explicit fictional note; Verified clears the balance. No actual funds moved. |
+
+**Dates and amounts:** The seed uses the previous completed checkout month (October 2026 for this meeting) and current utility month (November 2026). Its statement includes all four sample stays and a clearly labelled sample transfer report. Issuing has already locked that checkout month; show existing calculations rather than attempting to cancel a locked entry. Listing cards show monthly rent; private short-stay rows store total accommodation rent for a stay. These are different measures.
+
+**Rehearsal recovery:** Run `npm run seed:pitch` again to preserve progress. To deliberately restore only the dedicated pitch fixtures, use `npm run seed:pitch -- --restore`. The command backs up the database before writing, preserves other owners and existing account passwords, and refuses restoration if unexpected extra properties/units are attached to the pitch owner. Local `backend/data/pitch-demo-manifest.json` records dates/status/IDs and backup location. Avoid the administrator's global Reset example data for routine rehearsal: it resets all sample portfolios and removes this opt-in profile. If global reset was intentionally used, rerun `seed:pitch` to recreate the profile.
+
+**Server already running:** If port 4000 is occupied by the healthy SilidSmart backend, use `http://127.0.0.1:5173/`. Seeding does not require a second server. Refresh after preparation.
+
+### Suggested five-member speaking order
+
+Keep the existing eight-slide order and target 6:40 including clicks/handoffs. These are rehearsal targets, not measured timings.
+
+1. **Member 1, 0:00–1:30:** Cover, problem/customers and value. State that accounts, properties and locations are examples.
+2. **Member 2, 1:30–3:30:** Use PITCH 01 throughout Find/Update/Check. Show All published units and PITCH 02's occupied status if time allows. Narrate while another member operates the screen.
+3. **Member 3, 3:30–4:30:** Free for 1–4, PHP 99 for 5–10, PHP 199 for 11–25, PHP 349 for 26–50, custom above 50. The seeded 5-unit owner is PHP 99. Only completed SilidSmart short stays carry 5%; owners remit monthly by next month's 10th. No gateway.
+4. **Member 4, 4:30–5:50:** Market and proposed advantage. Start locally; similar tools exist and adoption is unvalidated.
+5. **Member 5, 5:50–6:40:** Viability, limits and next pilot. Keep PITCH 03/04/05 ready for utility/commission questions instead of extending the main demo.
+
+If the group has a different number of speakers, combine adjacent parts without changing the logic. Rehearse from the projected slides, then restore only the pitch fixtures for the final starting state. Sample staff review is not real payment-provider verification or actual revenue.
+
+## Base dataset walkthrough
+
+The steps below use the original Maria/Juan examples. Use the separate Pitch Demo Owner above for the five-unit rehearsal.
+
 1. Start the backend with `npm start` in `backend/`, and the frontend with `npm run dev` in `frontend/`. Open the local URL printed by Vite. Keep both terminals running during the pitch.
-2. Start as a guest. Point out the clean navigation and free rental discovery. **Around UST** shows six sample vacancies; **Quezon City** shows three examples in Diliman, Cubao, and Katipunan.
+2. Start as a guest. Point out the clean navigation and free rental discovery. The base dataset has six UST and three QC vacancies; the opt-in pitch profile initially adds three UST vacancies. Counts change during rehearsal. QC examples are in Diliman, Cubao, and Katipunan.
 3. Select a map price, then a room or apartment in the popup. Show rent, deposit, amenities, and house rules. Change a search filter to demonstrate matching map and list results.
 4. Choose **Sign in → Juan Dela Cruz** to preview the renter. Only renter navigation appears. Explain that viewing requests belong to the signed-in renter.
 5. Sign out using the account menu. Choose **Sign in → Maria Santos** to preview the landlord. **My properties** shows only Maria's portfolio, including vacancy controls and private tenant/rent views.

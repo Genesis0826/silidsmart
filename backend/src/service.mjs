@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createAuthStore } from './auth.mjs';
 import { randomUUID } from 'node:crypto';
 import { createCommissionStore, manilaToday } from './commissions.mjs';
+import { preparePitchFixtures, PITCH_OWNER_ID } from './pitch-seed.mjs';
 import {
   seedOwners,
   seedProperties,
@@ -692,6 +693,11 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         `)
         .get(ownerId);
       return calculateBmcSubscriptionTier(countRow?.count || 0);
+    },
+
+    // Local CLI/test fixture preparation only; not exposed as an HTTP mutation.
+    preparePitchDemo(options) {
+      return { ...preparePitchFixtures(db, auth, commissions, options), workspace: this.getOwnerWorkspace(PITCH_OWNER_ID) };
     },
 
     issueCommissionStatement: (ownerId, month) => commissions.issue(ownerId, month),

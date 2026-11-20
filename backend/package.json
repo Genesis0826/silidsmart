@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node --no-warnings src/server.mjs",
     "dev": "node --no-warnings --watch src/server.mjs",
-    "test": "node --no-warnings --test"
+    "test": "node --no-warnings --test",
+    "seed:pitch": "node --no-warnings scripts/seed-pitch.mjs"
   }
 }
