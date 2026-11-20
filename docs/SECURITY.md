@@ -35,3 +35,7 @@ Defines the B2B2C privacy isolation boundaries, role-scoped serialization contra
 - Public workspaces return no inquiries to guests. Signed-in renters receive requests linked to their account ID, not matching names or contact numbers. The server assigns the requester ID on submission; supplied renter IDs and roles grant no access.
 - Owner registration creates its account and portfolio in one transaction. Public account registration can only create renters; administrator registration is not exposed.
 - Cross-origin writes are rejected; the Vite proxy preserves the browser host. Production deployment, abuse controls, recovery flows, and verified real-world rental inventory are outside this pitch scope.
+
+## Short-stay ledger boundary — November 20, 2026
+
+Short-stay guest and commission records are private. Reads join unit/property ownership; writes require an owner session and portfolio membership. Guests/renters cannot use the new routes; another owner cannot read or change a stay. Public endpoints never query these entries, and React clears them on role/account changes. The server validates dates, rent bounds/precision, guest name, source and status, and sets 5% itself. Source, completion and payment remain owner-reported, so this is not payment verification, an enforceable billing system or fraud-resistant revenue evidence.

@@ -17,7 +17,9 @@ This is a **pitch prototype for Saturday, November 21, 2026**. Accounts, propert
    - Manage room/unit inventory (`1 room or 1 apartment = 1 count`), toggle occupancy (`Vacant` / `Occupied`), and record move-in tenants and rent payment statuses (`Paid`, `Due`, `Overdue`).
    - Marking a unit `Occupied` atomically hides it from public search and creates private tenant + rent ledger rows; marking `Vacant` republishes it immediately.
    - Generate printable property gate QR posters and auto-synced Facebook & community group vacancy posts (`QR Poster & FB Share` tab).
-   - Automatic flat-rate monthly subscription calculation (`1–10: ₱99/mo`, `11–25: ₱199/mo`, `26–50: ₱349/mo`, `>50: Custom Quote`).
+   - Proposed monthly subscriptions (`1–4: Free`, `5–10: ₱99/mo`, `11–25: ₱199/mo`, `26–50: ₱349/mo`, `>50: Custom Quote`). All tiers share core management tools; an empty portfolio has no monthly charge.
+   - Private **Short Stays & Commission** ledger: owners record completed stays and accommodation rent; SilidSmart-sourced stays calculate a separate **5% owner-paid commission** on every plan. Other-source/cancelled stays have no commission. Entries do not reserve dates or change occupancy.
+   - **No payment processing:** rent, subscriptions, and commissions are not collected, deducted, remitted, or verified by the prototype. Ledger amounts are owner-reported calculations, not collected revenue.
 3. **Platform Governance & Privacy Audit (`AdminView`)**
    - Manual review of landlord government ID submissions (`Pending review`, `ID reviewed`, `Needs correction`).
    - Listing discrepancy moderation, force publish/delist controls, live system telemetry log, and public/private payload isolation inspection.
@@ -66,7 +68,7 @@ Use **Sign in → Example accounts**. Only the selected account's workspace appe
 ## Verification Commands
 
 ```bash
-# Backend integration, role-isolation & privacy guardrail suite (15/15 tests)
+# Backend integration, role-isolation & privacy guardrail suite (18 tests)
 cd backend && npm test
 
 # Frontend TypeScript check, production build & Oxlint

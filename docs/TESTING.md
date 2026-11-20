@@ -10,7 +10,7 @@ Documents the automated test suite, frontend static checks, and live proxy smoke
    ```bash
    cd backend && npm test
    ```
-   - **Test 1**: BMC Subscription Tier Calculator (`1–10: ₱99`, `11–25: ₱199`, `26–50: ₱349`, `>50: Custom Quote`) and `1 room or 1 apartment = 1 count`.
+   - **Test 1**: Subscription boundaries at 0, 1, 4, 5, 10, 11, 25, 26, 50, and 51 units (`1–4: Free`, `5–10: ₱99`, `11–25: ₱199`, `26–50: ₱349`, `>50: Custom Quote`) and `1 room or 1 apartment = 1 count`.
    - **Test 2**: Public Directory API (`GET /api/public/listings`) returns only `Vacant` published units, leaks zero tenant PII (`tenants` / `rent_records`), and includes all mandatory disclaimers.
    - **Test 3**: Atomic 1-Click Vacancy Sync (`PATCH /api/owner/units/:id/occupancy`) marks `unit-2` `Occupied`, creates private tenant + rent ledger rows, and immediately removes `unit-2` from public search.
    - **Test 4**: Input validation rejects invalid enum payloads with `400 INVALID_OCCUPANCY_STATUS`.
@@ -36,3 +36,7 @@ Documents the automated test suite, frontend static checks, and live proxy smoke
 The existing tests now authenticate through the session API and expect nine seed vacancies (six UST, three QC), and owner-directory responses containing only the active landlord. Direct requests to unrelated owner IDs return 403.
 
 Manual local browser checks cover guest navigation, all three example role logins, landlord portfolio visibility, renter-only navigation, session restoration on reload, sign-out, QC scope switching, price marker popups, and opening rental details from a popup. Desktop viewport emulation was unavailable in the constrained embedded preview; do not count a full desktop/mobile layout sweep as verified. Map street tiles and external photos require network access; the interface keeps listing details and displays an explicit map error if tiles fail.
+
+## November 20 pricing and short-stay checks
+
+The suite now has 18 tests. Tests 16–18 verify a PHP 1,500 stay yields PHP 75 at a server-enforced 5%, centavo rounding, source and cancellation/restoration rules, persisted workspace reloads, invalid dates/rent/source/status, no occupancy/monthly-ledger side effects, public privacy, guest/renter denial, cross-owner isolation, and the same fee for a three-unit Free owner. These are manual record/calculation checks, not payment collection or production billing evidence.

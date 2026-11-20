@@ -54,7 +54,8 @@ Returns the isolated workspace for `ownerId` (`owner`, `owners` containing only 
 ### `GET /api/owner/:ownerId/subscription`
 Calculates the owner's monthly BMC subscription tier from their total managed rooms/units (`1 room or 1 apartment = 1 count`).
 - **Tiers**:
-  - `1–10 units`: `₱99/mo` (`TIER_1_STARTER`)
+  - `1–4 units`: `₱0/mo` (`TIER_FREE`; zero units also has no charge)
+  - `5–10 units`: `₱99/mo` (`TIER_1_STARTER`)
   - `11–25 units`: `₱199/mo` (`TIER_2_GROWTH`)
   - `26–50 units`: `₱349/mo` (`TIER_3_SCALE`)
   - `>50 units`: `Custom Quote` (`TIER_CUSTOM_ENTERPRISE`)
@@ -70,6 +71,16 @@ Adds a new room or apartment unit to an owner's property and recalculates their 
 
 ### `PATCH /api/owner/rent-records/:recordId`
 Updates a manual rent payment ledger entry (`Paid`, `Due`, `Overdue`).
+
+### `POST /api/owner/short-stays`
+Records an owner-declared completed short stay. Requires the owner role and a unit in that owner's portfolio. Body: `{ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source: 'SilidSmart' | 'Other' }`. Dates must be real ISO dates with checkout after check-in; rent must be positive, at most PHP 10,000,000, with at most two decimal places. The server fixes the rate at 5% and ignores supplied fee/rate/status fields. Source is an owner report, not independently verified attribution.
+
+Returns `201` with the owner workspace including `shortStays`. Each entry contains the submitted fields plus `id`, `status`, `commissionPercent`, `commissionPhp`, and `recordedAt`. Only completed SilidSmart-sourced entries calculate commission, rounded to centavos; other-source/cancelled entries calculate zero. This does not change occupancy, create a reservation, verify payment, or collect money.
+
+### `PATCH /api/owner/short-stays/:recordId`
+Body: `{ status: 'Completed' | 'Cancelled' }`. Requires ownership of the record. Returns the owner workspace. Cancelling waives calculated commission; restoring completion recalculates it at the stored 5% rate. No refund or payment occurs.
+
+Private short-stay entries are omitted from all public endpoints and cleared from client state when leaving the owner workspace.
 
 ### `PATCH /api/owner/inquiries/:inquiryId`
 Approves or declines a renter viewing request (`Approved`, `Declined`).

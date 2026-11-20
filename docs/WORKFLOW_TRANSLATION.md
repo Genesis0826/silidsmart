@@ -43,7 +43,7 @@ Airbnb connects transient travelers with short-term hosts through a high-frequen
 |  [Admin/Reviewer UI]  ---> [Platform Trust & Subscriptions]                                        |
 |                            * Owner ID Review Queue ("Owner ID reviewed" badge)                     |
 |                            * Listing Moderation & User Reports                                     |
-|                            * Plan Tiers (1-10: P99, 11-25: P199, 26-50: P349, >50: Custom)       |
+|                            * Plans (1-4: Free, 5-10: P99, 11-25: P199, 26-50: P349, >50: Custom) |
 +----------------------------------------------------------------------------------------------------+
 ```
 
@@ -58,7 +58,7 @@ Airbnb connects transient travelers with short-term hosts through a high-frequen
 | **Kafka Event Stream** | **Vacancy State Transition Engine** | Emits atomic `UnitAvailabilityChanged` events. When an owner toggles a unit from "Vacant" to "Occupied" (or registers a tenant), the event instantly delists the unit from the public search directory. |
 | **ElasticSearch Cluster & Search Service** | **Public Marketplace Search Directory** | Public search indexed exclusively on `published = true` AND `status = 'Vacant'`. Supports filtering by Area (e.g. Sample City North, Central, East), Rental Type (Boarding house, Apartment, Dorm), and Monthly Rent (`P`). |
 | **Customer App (Search & Booking)** | **Customer (Tenant/Renter) Portal** | Free, unauthenticated public discovery. Renters compare cards showing owner-stated rent, deposit, house rules, amenities, and `Availability last updated by owner: [date]`. |
-| **Booking & Payment Service** | **Direct Inquiry & Viewing Workflow** | **Zero-commission model**: SilidSmart does not process rent payments or hold escrow deposits. Renters submit viewing/booking inquiries directly to the owner. Owners approve or decline in their dashboard. |
+| **Booking & Payment Service** | **Viewing Inquiries and Private Short-Stay Ledger** | Viewing requests remain free inquiries, not reservations. Owners manually record completed stays; eligible SilidSmart-sourced rent calculates 5% owner-paid commission on every tier. Cancelled/other-source stays calculate zero. No payments, deductions, escrow, verification, or fee collection. |
 | **Booking Management & Archival (Cassandra/Hadoop)** | **Admin / Reviewer Operations & Metrics** | Reviewers manage the **Owner ID verification queue** (granting "Owner ID reviewed" status; strictly disclaiming safety certification), process listing issue reports, and monitor subscription tier distribution. |
 
 ---
@@ -107,10 +107,11 @@ sequenceDiagram
 
 | Metric / Dimension | Airbnb Model | SilidSmart BMC Model |
 |---|---|---|
-| **Primary Payer** | Guest (service fee) + Host (commission per booking) | **Rental Property Owners Only** (B2B SaaS subscription) |
-| **Renter Cost** | ~14% guest booking fee + local taxes | **₱0 (100% Free to browse and search)** |
-| **Pricing Metric** | Per-transaction % cut (3% host + 14% guest) | **Flat monthly tiers based on total rooms/units managed** |
-| **Tier 1 (1–10 units)** | N/A | **₱99 / month** |
+| **Primary Payer** | Guest/host fees vary by booking model | **Owners** (capacity-based subscriptions plus eligible short-stay fees; Free monthly tier for 1–4 units) |
+| **Renter Cost** | Depends on the current platform fee structure | **₱0 to browse and inquire** |
+| **Pricing Metric** | Booking-based fees | **Unit-count monthly tiers plus 5% of completed SilidSmart-sourced short-stay accommodation rent** |
+| **Free (1–4 units)** | N/A | **₱0 / month; separate short-stay rule still applies** |
+| **Tier 1 (5–10 units)** | N/A | **₱99 / month** |
 | **Tier 2 (11–25 units)**| N/A | **₱199 / month** |
 | **Tier 3 (26–50 units)**| N/A | **₱349 / month** |
 | **Enterprise (>50 units)**| Custom enterprise contract | **Custom monthly quote** (No 50-unit platform limit) |

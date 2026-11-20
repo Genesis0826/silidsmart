@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createAuthStore } from './auth.mjs';
+import { randomUUID } from 'node:crypto';
 import {
   seedOwners,
   seedProperties,
@@ -42,11 +43,22 @@ export function calculateBmcSubscriptionTier(unitCount) {
   const disclaimer = 'The monthly fee depends on the total rooms or apartment units managed';
   const countingRule = '1 room or 1 apartment = 1 count';
 
+  if (count <= 4) {
+    return {
+      managedUnits: count,
+      tierCode: 'TIER_FREE',
+      tierLabel: 'Free (1–4 units) • ₱0/mo',
+      monthlyFeePhp: 0,
+      customQuote: false,
+      countingRule,
+      disclaimer,
+    };
+  }
   if (count <= 10) {
     return {
       managedUnits: count,
       tierCode: 'TIER_1_STARTER',
-      tierLabel: 'Tier 1 (1–10 units) • ₱99/mo',
+      tierLabel: 'Tier 1 (5–10 units) • ₱99/mo',
       monthlyFeePhp: 99,
       customQuote: false,
       countingRule,
@@ -114,6 +126,16 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     } catch (error) { db.exec('ROLLBACK;'); throw error; }
   }
 
+  const shortStayMigration = '003_short_stay_records.sql';
+  if (!db.prepare('SELECT version FROM schema_migrations WHERE version = ?').get(shortStayMigration)) {
+    db.exec('BEGIN;');
+    try {
+      db.exec(fs.readFileSync(path.join(__dirname, '..', 'migrations', shortStayMigration), 'utf8'));
+      insertMigration.run(shortStayMigration, new Date().toISOString());
+      db.exec('COMMIT;');
+    } catch (error) { db.exec('ROLLBACK;'); throw error; }
+  }
+
   function populateSeedData() {
     db.exec('BEGIN TRANSACTION;');
     try {
@@ -121,6 +143,7 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         DELETE FROM system_events;
         DELETE FROM listing_reports;
         DELETE FROM inquiries;
+        DELETE FROM short_stay_records;
         DELETE FROM rent_records;
         DELETE FROM tenants;
         DELETE FROM units;
@@ -349,6 +372,21 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
     recordedDate: row.recorded_date,
   });
 
+  const mapShortStay = (row) => ({
+    id: row.id,
+    unitId: row.unit_id,
+    guestName: row.guest_name,
+    checkInDate: row.check_in_date,
+    checkOutDate: row.check_out_date,
+    rentTotalPhp: row.rent_total_centavos / 100,
+    source: row.source,
+    status: row.status,
+    commissionPercent: row.commission_percent,
+    commissionPhp: row.status === 'Completed' && row.source === 'SilidSmart'
+      ? Math.round(row.rent_total_centavos * row.commission_percent / 100) / 100 : 0,
+    recordedAt: row.recorded_at,
+  });
+
   const mapInquiry = (row) => ({
     id: row.id,
     unitId: row.unit_id,
@@ -537,6 +575,9 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         tenants,
         rentRecords,
         inquiries,
+        shortStays: db.prepare(`SELECT s.* FROM short_stay_records s
+          JOIN units u ON u.id = s.unit_id JOIN properties p ON p.id = u.property_id
+          WHERE p.owner_id = ? ORDER BY s.recorded_at DESC, s.id DESC`).all(ownerId).map(mapShortStay),
         subscription: calculateBmcSubscriptionTier(units.length),
       };
     },
@@ -577,6 +618,43 @@ export function createSilidSmartService(dbPath = path.join(__dirname, '..', 'dat
         `)
         .get(ownerId);
       return calculateBmcSubscriptionTier(countRow?.count || 0);
+    },
+
+    recordShortStay({ unitId, guestName, checkInDate, checkOutDate, rentTotalPhp, source }) {
+      const validDate = (value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
+        && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
+      if (!validDate(checkInDate) || !validDate(checkOutDate) || checkOutDate <= checkInDate) {
+        throw new ValidationError('INVALID_STAY_DATES', 'Use valid dates with checkout after check-in.');
+      }
+      if (typeof guestName !== 'string' || !guestName.trim() || guestName.trim().length > 120) {
+        throw new ValidationError('INVALID_GUEST_NAME', 'Enter a guest name of 1–120 characters.');
+      }
+      if (!['SilidSmart', 'Other'].includes(source)) {
+        throw new ValidationError('INVALID_STAY_SOURCE', 'Choose SilidSmart or Other as the source.');
+      }
+      const centavos = Math.round(rentTotalPhp * 100);
+      if (typeof rentTotalPhp !== 'number' || !Number.isFinite(rentTotalPhp) || rentTotalPhp <= 0
+          || rentTotalPhp > 10_000_000 || Math.abs(centavos - rentTotalPhp * 100) > 0.000001) {
+        throw new ValidationError('INVALID_STAY_RENT', 'Rent must be greater than zero, at most ₱10,000,000, with up to two decimal places.');
+      }
+      if (!db.prepare('SELECT id FROM units WHERE id = ?').get(unitId)) {
+        throw new NotFoundError('UNIT_NOT_FOUND', 'Unit not found.');
+      }
+      // This is an owner-declared completed stay, not a reservation or payment receipt.
+      db.prepare(`INSERT INTO short_stay_records
+        (id, unit_id, guest_name, check_in_date, check_out_date, rent_total_centavos, source, status, commission_percent, recorded_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Completed', 5, ?)`)
+        .run(randomUUID(), unitId, guestName.trim(), checkInDate, checkOutDate, centavos, source, new Date().toISOString());
+      return { ok: true };
+    },
+
+    updateShortStayStatus({ recordId, status }) {
+      if (!['Completed', 'Cancelled'].includes(status)) {
+        throw new ValidationError('INVALID_STAY_STATUS', 'Status must be Completed or Cancelled.');
+      }
+      const result = db.prepare('UPDATE short_stay_records SET status = ? WHERE id = ?').run(status, recordId);
+      if (!result.changes) throw new NotFoundError('STAY_NOT_FOUND', 'Short-stay record not found.');
+      return { ok: true };
     },
 
     toggleUnitOccupancy({ unitId, newStatus, tenantName, tenantContact, moveInDate }) {

@@ -3,6 +3,13 @@
 ## Overview
 Tracks dated milestone status, prototype readiness, and verified acceptance gates for SilidSmart.
 
+## Current pricing and short-stay scope — November 20, 2026
+
+- Owner plans now calculate 1–4 units Free, 5–10 PHP 99/month, 11–25 PHP 199, 26–50 PHP 349, custom above 50. Zero units has no monthly charge. Registration, owner pricing, and admin subscription estimates use these boundaries; core tools are shared across tiers.
+- Added a private owner ledger for completed short stays: dates, guest, rent subtotal and owner-reported source. The backend calculates 5% on completed SilidSmart-sourced entries on every tier; cancelled/other-source entries calculate zero. Versioned migration 003 preserves existing inventory.
+- Payments remain outside the prototype. No rent/subscription/commission collection, deduction, remittance, payment verification, date reservation, overlap checking or automatic occupancy change is introduced. Commission totals are owner-reported calculations, not collected revenue.
+- Fresh backend integration checks pass 18/18 on isolated in-memory SQLite; strict frontend TypeScript, Vite build and Oxlint pass. The initial sandbox loopback EACCES was resolved by a permitted test rerun. An isolated hidden Edge check passes owner pricing, fee preview/save/cancellation, reload persistence, mobile overflow, sign-out privacy and admin proposed-plan labeling. Migration on a separate copy of the existing database preserves inventory/accounts and persists stays across service reopening; the original database was untouched. The five requested guides were rebuilt and all 13 rendered pages visually reviewed (1/2/4/4/2 pages). No production billing or live payment was tested or introduced.
+
 ## Current pitch scope — November 18, 2026
 
 The user confirmed this is a prototype for the Saturday, November 21 pitch, not a complete production system. Scope is a clear demonstration of renter discovery, role-specific workspaces, and example UST/QC rental maps.

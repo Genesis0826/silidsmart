@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Property, Unit, Tenant, RentRecord, Inquiry, Owner, RentPaymentStatus } from '../types';
+import type { Property, Unit, Tenant, RentRecord, Inquiry, Owner, RentPaymentStatus, ShortStay, ShortStayInput } from '../types';
 import {
   Plus, Shield, BarChart3, Download, Search,
   Check, X, FileText, Info, RefreshCw, Rows3, Rows4, QrCode, Share2, Copy, UserCheck
 } from 'lucide-react';
 import { downloadCsv } from '../utils/exportCsv';
+import { ownerPlan } from '../utils/pricing';
+import { ShortStayLedger } from './ShortStayLedger';
 
 interface OwnerViewProps {
   owner: Owner;
@@ -13,6 +15,9 @@ interface OwnerViewProps {
   tenants: Tenant[];
   rentRecords: RentRecord[];
   inquiries: Inquiry[];
+  shortStays: ShortStay[];
+  onRecordShortStay: (stay: ShortStayInput) => Promise<boolean>;
+  onUpdateShortStay: (id: string, status: ShortStay['status']) => Promise<boolean>;
   onToggleOccupancy: (
     unitId: string,
     newStatus: 'Vacant' | 'Occupied',
@@ -30,12 +35,15 @@ export const OwnerView = ({
   tenants,
   rentRecords,
   inquiries,
+  shortStays,
+  onRecordShortStay,
+  onUpdateShortStay,
   onToggleOccupancy,
   onAddUnit,
   onUpdateRentStatus,
   onRespondInquiry,
 }: OwnerViewProps) => {
-  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'analytics' | 'tenants' | 'ledger' | 'inquiries' | 'outreach' | 'plans' | 'shortStays'>('inventory');
   const [tableDensity, setTableDensity] = useState<'comfortable' | 'compact'>('comfortable');
   const [copiedPostToast, setCopiedPostToast] = useState<string | null>(null);
 
@@ -206,14 +214,8 @@ export const OwnerView = ({
   }, [ownerInquiries, inquiryStatusFilter]);
 
   // Determine pricing tier from unit count
-  const currentTier =
-    totalUnits <= 10
-      ? 'Tier 1 (1–10 units) • ₱99/mo'
-      : totalUnits <= 25
-      ? 'Tier 2 (11–25 units) • ₱199/mo'
-      : totalUnits <= 50
-      ? 'Tier 3 (26–50 units) • ₱349/mo'
-      : 'Custom Plan (>50 units) • Custom Quote';
+  const plan = ownerPlan(totalUnits);
+  const currentTier = `${plan.name} • ${plan.price === null ? 'Custom quote' : `₱${plan.price}/mo`}`;
 
   const cellPad = tableDensity === 'compact' ? '8px 12px' : '14px 16px';
 
@@ -419,6 +421,11 @@ export const OwnerView = ({
               >
                 <span>Viewing Inquiries</span>
                 {pendingInquiriesCount > 0 && <span className="badge badge-verified mono-num">{pendingInquiriesCount}</span>}
+              </button>
+
+              <button onClick={() => setActiveTab('shortStays')}
+                className={`saas-nav-item ${activeTab === 'shortStays' ? 'active' : ''}`}>
+                <span>Short Stays & Commission</span>
               </button>
 
               <button
@@ -685,7 +692,7 @@ export const OwnerView = ({
                         Monthly Portfolio Cashflow & Collection Health
                       </h2>
                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Live metrics calculated from your managed units and monthly rent ledger (₱0 platform commission).
+                        Metrics from your managed units and manual monthly rent ledger. Monthly rent has no commission; short-stay fees are tracked separately.
                       </p>
                     </div>
                     <span className="badge badge-paid mono-num">Collection Rate: {portfolioAnalytics.collectionRate}%</span>
@@ -1054,7 +1061,7 @@ export const OwnerView = ({
                       Monthly Rent Payment Ledger
                     </h2>
                     <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      Record cash, bank transfer, or e-wallet rent payments manually. SilidSmart charges 0% commission on rent collections.
+                      Record monthly rent payment statuses manually. Monthly rent has no platform commission. SilidSmart does not collect or verify payments.
                     </p>
                   </div>
 
@@ -1514,6 +1521,10 @@ export const OwnerView = ({
             )}
 
             {/* TAB 6: BMC SUBSCRIPTION PLAN & TIER BREAKDOWN */}
+            {activeTab === 'shortStays' && (
+              <ShortStayLedger units={ownerUnits} properties={ownerProperties} stays={shortStays}
+                onRecord={onRecordShortStay} onUpdateStatus={onUpdateShortStay} />
+            )}
             {activeTab === 'plans' && (
               <div className="card" style={{ padding: '24px' }}>
                 <div style={{ marginBottom: '20px' }}>
@@ -1521,7 +1532,7 @@ export const OwnerView = ({
                     Owner Monthly Subscription Tiers
                   </h2>
                   <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
-                    The monthly fee depends on the total rooms or apartment units managed. Renters browse 100% free with no booking commissions.
+                    Free monthly access for 1–4 units; paid plans start at 5 units. All plans use a separate 5% owner-paid fee on completed short stays sourced through SilidSmart. Renters browse and inquire free.
                   </p>
                 </div>
 
@@ -1552,16 +1563,24 @@ export const OwnerView = ({
                   </span>
                 </div>
 
-                {/* 4 Pricing Tier Cards */}
+                <p style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  Proposed prices. No subscription or commission is collected in this prototype. Short-stay rent excludes refundable deposits, taxes, and other charges; cancelled stays have no commission. Payment and stay completion are owner-reported.
+                </p>
+                {/* Capacity-based plans share the same core tools. */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
                   {[
                     {
+                      title: 'Free', range: '1–4 rooms / units', price: '₱0', period: '/ month',
+                      active: totalUnits <= 4,
+                      features: ['Up to 4 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
+                    },
+                    {
                       title: 'Tier 1: Starter',
-                      range: '1–10 rooms / units',
+                      range: '5–10 rooms / units',
                       price: '₱99',
                       period: '/ month',
-                      active: totalUnits >= 1 && totalUnits <= 10,
-                      features: ['Up to 10 rooms or units', 'Real-time public vacancy sync', 'Private tenant & rent ledger'],
+                      active: totalUnits >= 5 && totalUnits <= 10,
+                      features: ['5 to 10 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
                     },
                     {
                       title: 'Tier 2: Growth',
@@ -1569,7 +1588,7 @@ export const OwnerView = ({
                       price: '₱199',
                       period: '/ month',
                       active: totalUnits >= 11 && totalUnits <= 25,
-                      features: ['11 to 25 rooms or units', 'Multi-property management', 'Viewing inquiry workflow'],
+                      features: ['11 to 25 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
                     },
                     {
                       title: 'Tier 3: Scale',
@@ -1577,7 +1596,7 @@ export const OwnerView = ({
                       price: '₱349',
                       period: '/ month',
                       active: totalUnits >= 26 && totalUnits <= 50,
-                      features: ['26 to 50 rooms or units', 'Priority ID review support', 'Full rent roll tracking'],
+                      features: ['26 to 50 rooms or units', 'Core owner management tools', '5% on SilidSmart short stays'],
                     },
                     {
                       title: 'Enterprise Dorm',
@@ -1585,7 +1604,7 @@ export const OwnerView = ({
                       price: 'Custom Quote',
                       period: '',
                       active: totalUnits > 50,
-                      features: ['More than 50 units', 'Dedicated onboarding setup', 'Custom multi-building support'],
+                      features: ['More than 50 units', 'Monthly price by agreement', '5% on SilidSmart short stays'],
                     },
                   ].map((tier, idx) => (
                     <div

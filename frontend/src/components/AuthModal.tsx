@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ownerPlan } from '../utils/pricing';
 import type { AuthUser, UserRole } from '../types';
 import { 
   X, LogIn, UserPlus, Home, User, Mail, 
@@ -68,10 +69,8 @@ export const AuthModal = ({
   // BMC Tier calculation
   const getBmcPlan = (unitCount: number) => {
     if (unitCount <= 0) return { name: 'Invalid Count', price: 0 };
-    if (unitCount <= 10) return { name: 'Basic Tier (1–10 Units)', price: 99 };
-    if (unitCount <= 25) return { name: 'Standard Tier (11–25 Units)', price: 199 };
-    if (unitCount <= 50) return { name: 'Growth Tier (26–50 Units)', price: 349 };
-    return { name: 'Enterprise Tier (>50 Units)', price: 'Custom Quote' };
+    const plan = ownerPlan(unitCount);
+    return { ...plan, price: plan.price ?? 'Custom Quote' };
   };
 
   const currentPlan = getBmcPlan(managedUnits);
@@ -355,7 +354,7 @@ export const AuthModal = ({
                       Property Owner
                     </div>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Manage inventory, tenants & rent from ₱99/mo
+                      Free for 1–4 units; paid plans from ₱99/mo
                     </span>
                   </button>
                 </div>
@@ -462,7 +461,7 @@ export const AuthModal = ({
                         </div>
                       </div>
                       <p style={{ margin: '6px 0 0 0', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                        "The monthly fee depends on the total rooms or apartment units managed." Renters browse 100% free with 0% booking commission.
+                        The monthly fee depends on the total rooms or apartment units managed. Free for 1–4 units. All plans: 5% owner-paid commission on completed SilidSmart-sourced short stays. Renters browse and inquire free. No payments are collected in this prototype.
                       </p>
                     </div>
 

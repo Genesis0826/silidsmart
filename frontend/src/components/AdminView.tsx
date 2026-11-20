@@ -5,6 +5,7 @@ import {
   FileText, Activity, Eye, EyeOff, Layers
 } from 'lucide-react';
 import { downloadCsv } from '../utils/exportCsv';
+import { ownerPlan } from '../utils/pricing';
 
 interface AdminViewProps {
   owners: Owner[];
@@ -98,8 +99,9 @@ export const AdminView = ({
     const ownerSubscriptions = owners.map((o) => {
       const oPropIds = new Set(properties.filter((p) => p.ownerId === o.id).map((p) => p.id));
       const count = units.filter((u) => oPropIds.has(u.propertyId)).length;
-      const fee = count === 0 ? 0 : count <= 10 ? 99 : count <= 25 ? 199 : count <= 50 ? 349 : null;
-      const tierLabel = count === 0 ? 'No Units' : count <= 10 ? 'Tier 1 (₱99)' : count <= 25 ? 'Tier 2 (₱199)' : count <= 50 ? 'Tier 3 (₱349)' : 'Custom Quote';
+      const plan = ownerPlan(count);
+      const fee = plan.price;
+      const tierLabel = plan.name;
       return { owner: o, unitCount: count, feePhp: fee, tierLabel };
     });
     const estimatedMrrPhp = ownerSubscriptions.reduce((sum, sub) => sum + (sub.feePhp || 0), 0);
@@ -239,7 +241,7 @@ export const AdminView = ({
 
           <div className="ledger-kpi-cell">
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Est. SaaS MRR
+              Proposed monthly plan value
             </div>
             <div className="mono-num" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--action-blue)', marginTop: '4px' }}>
               ₱{marketplaceAnalytics.estimatedMrrPhp.toLocaleString()}
@@ -528,7 +530,7 @@ export const AdminView = ({
                       <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--brand-navy)' }}>
                         Landlord ID Trust & SaaS Subscription Roll
                       </h4>
-                      <span className="badge badge-paid mono-num">₱{marketplaceAnalytics.estimatedMrrPhp.toLocaleString()}/mo MRR</span>
+                      <span className="badge badge-info mono-num">₱{marketplaceAnalytics.estimatedMrrPhp.toLocaleString()}/mo proposed</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
                       {marketplaceAnalytics.ownerSubscriptions.map((sub) => (
@@ -910,7 +912,7 @@ export const AdminView = ({
                         → Viewing Inquiries & SaaS Tiers
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        ₱0 renter commission; flat landlord plans (₱99, ₱199, ₱349/mo).
+                        Free renters; owner plans: 1–4 free, 5–10 ₱99, 11–25 ₱199, 26–50 ₱349/mo. Separate 5% on owner-reported completed SilidSmart short stays; no payment processing.
                       </div>
                     </div>
                   </div>

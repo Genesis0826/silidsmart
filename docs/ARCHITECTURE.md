@@ -11,7 +11,7 @@ Defines the system boundaries, Airbnb/Booking.com-to-SilidSmart B2B2C architectu
 | `Kafka Event Stream` + `Search Consumer` | **Real-Time Vacancy Sync Transaction (`toggleUnitOccupancy`)** + `system_events` telemetry | Atomic SQLite transaction updating unit status, public visibility (`published`), freshness timestamp (`last_updated`), and private tenant/rent rows |
 | `UI / APP for Customers` + `Search Service` + `ElasticSearch` | **Public Renter Directory (`CustomerView`)** + `GET /api/public/workspace` & `GET /api/public/listings` | Faceted search by district, property type, budget, and verified owner ID, plus side-by-side unit comparison (`up to 3 units`) with zero tenant PII exposure |
 | `Booking Service` + `UI / APP to View Bookings` | **Viewing Inquiry & Reservation Tracker** (`inquiries` table) | Renter viewing schedule requests (`Pending` -> `Approved` / `Declined`) and 1-click landlord move-in conversion (`Move In & Mark Occupied`) |
-| `Payment Service` | **Flat-Rate SaaS Tier Engine (`calculateBmcSubscriptionTier`)** | Replaces per-booking commissions (`₱0` renter fee) with flat landlord monthly plans (`₱99`, `₱199`, `₱349`, `Custom Quote`) |
+| `Payment Service` | **Subscription calculator and private completed-stay ledger** | Free for 1–4 units; ₱99 for 5–10, ₱199 for 11–25, ₱349 for 26–50, custom above 50. A separate 5% owner-paid fee is calculated on completed owner-reported SilidSmart short stays. No payment processing or collection. |
 | `Trust & Governance Layer` | **Admin Governance Console (`AdminView`)** | Manual government ID verification (`ID reviewed`), renter discrepancy report moderation, and B2B/B2C privacy guardrail audit |
 
 ## Runtime Layers & Role-Scoped Boundaries

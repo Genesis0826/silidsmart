@@ -12,6 +12,8 @@ import type {
   IDReviewStatus,
   RentPaymentStatus,
   AuthUser,
+  ShortStay,
+  ShortStayInput,
 } from './types';
 import { initialUsers } from './seedData';
 import { RoleSwitcher } from './components/RoleSwitcher';
@@ -36,6 +38,7 @@ interface OwnerWorkspacePayload {
   tenants: Tenant[];
   rentRecords: RentRecord[];
   inquiries: Inquiry[];
+  shortStays: ShortStay[];
 }
 
 interface BootstrapPayload {
@@ -79,6 +82,7 @@ export function App() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [rentRecords, setRentRecords] = useState<RentRecord[]>([]);
+  const [shortStays, setShortStays] = useState<ShortStay[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [listingReports, setListingReports] = useState<ListingReport[]>([]);
   const [systemEvents, setSystemEvents] = useState<SystemEvent[]>([]);
@@ -118,6 +122,7 @@ export function App() {
         // Explicitly clear private role tables on public renter view
         setTenants([]);
         setRentRecords([]);
+        setShortStays([]);
         setListingReports([]);
         setSystemEvents([]);
       } else if (role === 'owner') {
@@ -127,11 +132,13 @@ export function App() {
         setUnits(data.units);
         setTenants(data.tenants);
         setRentRecords(data.rentRecords);
+        setShortStays(data.shortStays);
         setInquiries(data.inquiries);
         setListingReports([]);
         setSystemEvents([]);
       } else {
         const data = payload as BootstrapPayload;
+        setShortStays([]);
         setOwners(data.owners);
         setProperties(data.properties);
         setUnits(data.units);
@@ -201,6 +208,7 @@ export function App() {
           setInquiries(data.inquiries);
           setTenants([]);
           setRentRecords([]);
+          setShortStays([]);
           setListingReports([]);
           setSystemEvents([]);
         } else if (currentRole === 'owner') {
@@ -210,11 +218,13 @@ export function App() {
           setUnits(data.units);
           setTenants(data.tenants);
           setRentRecords(data.rentRecords);
+          setShortStays(data.shortStays);
           setInquiries(data.inquiries);
           setListingReports([]);
           setSystemEvents([]);
         } else {
           const data = payload as BootstrapPayload;
+          setShortStays([]);
           setOwners(data.owners);
           setProperties(data.properties);
           setUnits(data.units);
@@ -300,6 +310,7 @@ export function App() {
     setLoadedKey(null);
     setOwners([]); setProperties([]); setUnits([]); setTenants([]);
     setRentRecords([]); setInquiries([]); setListingReports([]); setSystemEvents([]);
+    setShortStays([]);
   };
 
   const handleLogin = async (user: AuthUser, password = 'password123', register = false): Promise<boolean> => {
@@ -397,6 +408,21 @@ export function App() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paymentStatus: newStatus }),
+    });
+    return result.ok;
+  };
+
+  // Private completed-stay records; no reservation or payment processing.
+  const handleRecordShortStay = async (stay: ShortStayInput): Promise<boolean> => {
+    const result = await executeMutation('/api/owner/short-stays', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stay),
+    });
+    return result.ok;
+  };
+
+  const handleUpdateShortStay = async (id: string, status: ShortStay['status']): Promise<boolean> => {
+    const result = await executeMutation(`/api/owner/short-stays/${encodeURIComponent(id)}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
     });
     return result.ok;
   };
@@ -610,6 +636,9 @@ export function App() {
             onAddUnit={handleAddUnit}
             onUpdateRentStatus={handleUpdateRentStatus}
             onRespondInquiry={handleRespondInquiry}
+            shortStays={shortStays}
+            onRecordShortStay={handleRecordShortStay}
+            onUpdateShortStay={handleUpdateShortStay}
           />
         )}
 
@@ -663,7 +692,7 @@ export function App() {
           <div>
             <strong style={{ color: 'var(--brand-navy)' }}>SilidSmart.ph</strong> • Small Rental Operations & Public Room Directory
             <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-              Concept prototype - sample properties only • 100% Free Renter Discovery • Monthly flat subscriptions for owners
+              Concept prototype - sample properties only • Free renter discovery • Free owner plan for 1–4 units • 5% on owner-reported SilidSmart short stays • No online payments
             </div>
           </div>
           <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

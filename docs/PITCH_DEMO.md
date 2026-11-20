@@ -40,7 +40,7 @@ Avoid spending the presentation opening every tab. Keep admin moderation as an o
 
 “Our proposed business model keeps rental browsing free. Small landlords pay a monthly subscription based on how many rooms or apartment units they manage, starting at ₱99 per month for up to ten units. The subscription brings vacancy listings and basic rental records into one workspace.”
 
-If asked: proposed tiers are 1–10 units at ₱99/month, 11–25 at ₱199/month, 26–50 at ₱349/month, and a custom quote above 50. Pricing is a proposal to validate, not demonstrated customer willingness to pay.
+If asked: proposed tiers are 1–4 units Free, 5–10 at ₱99/month, 11–25 at ₱199/month, 26–50 at ₱349/month, and a custom quote above 50. All plans calculate a separate 5% owner-paid fee on owner-reported completed SilidSmart-sourced short stays. Owners can demonstrate the private Short Stays & Commission ledger; it does not reserve dates or collect payments. Pricing is a proposal to validate, not demonstrated willingness to pay or collected revenue.
 
 ### 5. Prototype status and next step — 45 seconds
 

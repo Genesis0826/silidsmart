@@ -93,6 +93,23 @@ export interface Inquiry {
   submittedAt: string;
 }
 
+export interface ShortStay {
+  id: string;
+  unitId: string;
+  guestName: string;
+  checkInDate: string;
+  checkOutDate: string;
+  rentTotalPhp: number;
+  source: 'SilidSmart' | 'Other';
+  status: 'Completed' | 'Cancelled';
+  commissionPercent: number;
+  commissionPhp: number;
+  recordedAt: string;
+}
+
+export type ShortStayInput = Pick<ShortStay,
+  'unitId' | 'guestName' | 'checkInDate' | 'checkOutDate' | 'rentTotalPhp' | 'source'>;
+
 export interface ListingReport {
   id: string;
   unitId: string;

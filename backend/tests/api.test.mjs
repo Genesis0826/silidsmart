@@ -33,6 +33,9 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
   });
 
   it('1. BMC Subscription Tier Calculator enforces 1 room/apt = 1 count and exact PHP pricing', () => {
+    for (const [count, fee] of [[0, 0], [1, 0], [4, 0], [5, 99], [10, 99], [11, 199], [25, 199], [26, 349], [50, 349], [51, null]]) {
+      assert.equal(calculateBmcSubscriptionTier(count).monthlyFeePhp, fee, `Boundary ${count}`);
+    }
     const tier1 = calculateBmcSubscriptionTier(6);
     assert.equal(tier1.monthlyFeePhp, 99);
     assert.equal(tier1.countingRule, '1 room or 1 apartment = 1 count');
@@ -331,5 +334,100 @@ describe('SilidSmart B2B2C Backend API & Privacy Guardrail Suite', () => {
     const after = await (await request('/api/bootstrap')).json();
     assert.equal(after.properties.length, before.properties.length);
     assert.equal(after.owners.length, before.owners.length);
+  });
+
+  it('16. Private short-stay records enforce server-side 5%, cancellation and source rules', async () => {
+    const before = await (await request('/api/owner/owner-1/workspace')).json();
+    const stay = { unitId: before.units[0].id, guestName: 'Private short stay guest', checkInDate: '2026-11-01', checkOutDate: '2026-11-04', rentTotalPhp: 1500, source: 'SilidSmart' };
+    const create = await request('/api/owner/short-stays', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...stay, commissionPercent: 0, commissionPhp: 0 }),
+    });
+    assert.equal(create.status, 201);
+    const state = await create.json();
+    const record = state.shortStays.find((row) => row.guestName === stay.guestName);
+    assert.equal(record.commissionPercent, 5);
+    assert.equal(record.commissionPhp, 75);
+    assert.equal(record.status, 'Completed');
+    assert.deepEqual(state.units, before.units, 'Ledger does not reserve or change occupancy');
+    assert.equal(state.rentRecords.length, before.rentRecords.length);
+    const reload = await (await request('/api/owner/owner-1/workspace')).json();
+    assert.ok(reload.shortStays.some((row) => row.id === record.id));
+
+    for (const path of ['/api/public/workspace', '/api/public/listings']) {
+      const publicState = await (await request(path)).json();
+      assert.equal(JSON.stringify(publicState).includes(stay.guestName), false);
+      assert.equal('shortStays' in publicState, false);
+    }
+    const cancel = await request(`/api/owner/short-stays/${record.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Cancelled' }),
+    });
+    assert.equal(cancel.status, 200);
+    assert.equal((await cancel.json()).shortStays.find((row) => row.id === record.id).commissionPhp, 0);
+    const other = await request('/api/owner/short-stays', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...stay, guestName: 'Other source guest', source: 'Other' }),
+    });
+    assert.equal(other.status, 201);
+    assert.equal((await other.json()).shortStays.find((row) => row.guestName === 'Other source guest').commissionPhp, 0);
+    const cents = await request('/api/owner/short-stays', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...stay, guestName: 'Rounding guest', rentTotalPhp: 100.10 }),
+    });
+    assert.equal((await cents.json()).shortStays.find((row) => row.guestName === 'Rounding guest').commissionPhp, 5.01);
+  });
+
+  it('17. Short-stay validation and portfolio/role boundaries reject forged or invalid records', async () => {
+    const owner = await (await request('/api/owner/owner-1/workspace')).json();
+    const stay = { unitId: owner.units[0].id, guestName: 'Validation guest', checkInDate: '2026-11-01', checkOutDate: '2026-11-04', rentTotalPhp: 1500, source: 'SilidSmart' };
+    for (const change of [{ checkOutDate: stay.checkInDate }, { checkInDate: '2026-02-30' }, { rentTotalPhp: -1 }, { rentTotalPhp: '1500' }, { rentTotalPhp: 1.234 }, { source: 'Invalid' }, { guestName: ' ' }]) {
+      const res = await request('/api/owner/short-stays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...stay, ...change }) });
+      assert.equal(res.status, 400, JSON.stringify(change));
+    }
+    const all = await (await request('/api/bootstrap')).json();
+    const foreignUnit = all.units.find((unit) => !owner.units.some((owned) => owned.id === unit.id));
+    const foreign = await request('/api/owner/short-stays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...stay, unitId: foreignUnit.id }) });
+    assert.equal(foreign.status, 403);
+    const renter = await request('/api/owner/short-stays', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stay) }, 'renter');
+    assert.equal(renter.status, 403);
+    const guest = await fetch(`${baseUrl}/api/owner/short-stays`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(stay) });
+    assert.equal(guest.status, 401);
+    const invalidStatus = await request(`/api/owner/short-stays/${owner.shortStays[0].id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Paid' }) });
+    assert.equal(invalidStatus.status, 400);
+    const missing = await request('/api/owner/short-stays/not-owned', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Cancelled' }) });
+    assert.equal(missing.status, 403);
+  });
+
+  it('18. A three-unit free owner pays the same 5% and cannot read or change another owner\'s stay', async () => {
+    const signup = await fetch(`${baseUrl}/api/owners/onboard`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerId: 'owner-free-stays', displayName: 'Free condo owner', propertyName: 'Three condo units', propertyType: 'Condo', initialUnitsCount: 3, email: 'free-stays@example.test', password: 'secure-example-pass' }),
+    });
+    assert.equal(signup.status, 201);
+    const cookie = signup.headers.get('set-cookie').split(';')[0];
+    const ownFetch = (path, options = {}) => fetch(`${baseUrl}${path}`, { ...options, headers: { ...options.headers, Cookie: cookie } });
+    const freeState = await (await ownFetch('/api/owner/owner-free-stays/workspace')).json();
+    assert.equal(freeState.subscription.monthlyFeePhp, 0);
+    assert.deepEqual(freeState.shortStays, []);
+    const created = await ownFetch('/api/owner/short-stays', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ unitId: freeState.units[0].id, guestName: 'Free plan guest', checkInDate: '2026-11-01', checkOutDate: '2026-11-04', rentTotalPhp: 1500, source: 'SilidSmart' }),
+    });
+    assert.equal(created.status, 201);
+    const state = await created.json();
+    assert.equal(state.shortStays[0].commissionPhp, 75);
+    assert.equal(state.subscription.monthlyFeePhp, 0);
+    const otherOwner = await (await request('/api/owner/owner-1/workspace')).json();
+    assert.equal(otherOwner.shortStays.some((stay) => stay.id === state.shortStays[0].id), false);
+    const blocked = await request(`/api/owner/short-stays/${state.shortStays[0].id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Cancelled' }),
+    });
+    assert.equal(blocked.status, 403);
+    const cancelled = await ownFetch(`/api/owner/short-stays/${state.shortStays[0].id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Cancelled' }),
+    });
+    assert.equal((await cancelled.json()).shortStays[0].commissionPhp, 0);
+    const restored = await ownFetch(`/api/owner/short-stays/${state.shortStays[0].id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'Completed' }),
+    });
+    assert.equal((await restored.json()).shortStays[0].commissionPhp, 75);
   });
 });

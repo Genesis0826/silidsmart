@@ -158,6 +158,24 @@ export function createAppServer(service = createSilidSmartService()) {
         return;
       }
 
+      // Private manual short-stay ledger; these routes do not process payments.
+      if (method === 'POST' && pathname === '/api/owner/short-stays') {
+        const body = await readJsonBody(req);
+        assertOwned('units', body.unitId);
+        service.recordShortStay(body);
+        sendJson(res, 201, ownerWorkspace());
+        return;
+      }
+      const shortStayMatch = pathname.match(/^\/api\/owner\/short-stays\/([^/]+)$/);
+      if (method === 'PATCH' && shortStayMatch) {
+        const recordId = decodeURIComponent(shortStayMatch[1]);
+        assertOwned('shortStays', recordId);
+        const body = await readJsonBody(req);
+        service.updateShortStayStatus({ recordId, status: body.status });
+        sendJson(res, 200, ownerWorkspace());
+        return;
+      }
+
       // 3. Update Rent Payment Status
       const rentMatch = pathname.match(/^\/api\/owner\/rent-records\/([^/]+)$/);
       if (method === 'PATCH' && rentMatch) {
